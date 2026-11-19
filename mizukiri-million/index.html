@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>一億個の石で水切りしたい</title>
+<meta name="robots" content="noindex, nofollow, noimageindex">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2f6b3a; }
+  body { font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif; color: #fff; user-select: none; }
+  canvas { display: block; }
+  .panel {
+    position: fixed; background: rgba(15, 22, 35, .78); border-radius: 12px;
+    padding: 10px 14px; pointer-events: none; text-shadow: 0 1px 3px #000;
+  }
+  #scorePanel { top: 12px; left: 12px; min-width: 260px; }
+  #pName { font-size: 14px; color: #ffd23f; font-weight: bold; }
+  #pScore { font-size: 34px; font-weight: 900; letter-spacing: 1px; line-height: 1.15; }
+  #pFormula { font-size: 12px; color: #c8d4e8; line-height: 1.6; }
+  #pFormula b { color: #fff; }
+  #statPanel { top: 12px; right: 12px; font-size: 13px; line-height: 1.75; min-width: 190px; }
+  #statPanel .row { display: flex; justify-content: space-between; gap: 14px; }
+  #statPanel .row span:last-child { font-weight: bold; color: #ffe9a0; }
+  #energyWrap {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    width: min(440px, calc(100vw - 520px)); min-width: 220px; pointer-events: none;
+  }
+  #energyBar {
+    position: relative; height: 34px; background: #0d1420; border-radius: 17px; overflow: hidden;
+    border: 3px solid #fff; box-shadow: 0 3px 12px rgba(0,0,0,.6);
+  }
+  #energyFill { height: 100%; width: 100%; background: linear-gradient(90deg, #19c46b, #6cf06a, #d7ff4f); transition: width .1s; }
+  #energyText {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 900; color: #fff; letter-spacing: 1px;
+    text-shadow: 0 0 4px #000, 0 0 4px #000, 0 1px 2px #000;
+  }
+  #energyWrap.low #energyBar { border-color: #ff5a3d; animation: blink .5s infinite alternate; }
+  @keyframes blink { from { box-shadow: 0 0 4px #ff5a3d; } to { box-shadow: 0 0 22px #ff5a3d; } }
+  #effects { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+             width: min(440px, calc(100vw - 520px)); min-width: 220px; }
+  .fxbar { position: relative; height: 24px; border-radius: 12px; background: #0d1420; border: 2px solid #fff; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .fxfill { height: 100%; transition: width .1s linear; }
+  .fxtext { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900;
+            text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  #stoneCount {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); pointer-events: none;
+    background: rgba(15,22,35,.85); border: 3px solid #fff; border-radius: 16px; padding: 4px 22px;
+    font-size: 30px; font-weight: 900; letter-spacing: 1px; text-shadow: 0 2px 4px #000; white-space: nowrap;
+    transition: transform .12s;
+  }
+  #stoneCount small { font-size: 15px; color: #c8d4e8; margin-right: 8px; font-weight: bold; }
+  #stoneCount.up { color: #7dffa0; transform: translateX(-50%) scale(1.12); }
+  #stoneCount.down { color: #ff7b7b; transform: translateX(-50%) scale(0.94); }
+  #detailBtn {
+    position: fixed; right: 12px; bottom: 14px; z-index: 6; font-size: 14px; font-weight: bold; font-family: inherit;
+    padding: 8px 14px; border-radius: 10px; border: 2px solid #ffc94a; background: rgba(15,22,35,.88); color: #ffc94a; cursor: pointer;
+  }
+  #detailPanel {
+    position: fixed; right: 12px; bottom: 58px; z-index: 6; width: 330px; max-height: calc(100vh - 230px); overflow-y: auto;
+    background: rgba(15,22,35,.93); border-radius: 12px; padding: 12px 14px; font-size: 12.5px; line-height: 1.6;
+  }
+  .bd h3 { margin: 8px 0 4px; font-size: 13px; color: #ffd23f; }
+  .bd h3:first-child { margin-top: 0; }
+  .bd .r { display: flex; justify-content: space-between; gap: 10px; }
+  .bd .r span:nth-child(2) { color: #ffe9a0; font-weight: bold; text-align: right; }
+  .bd .r.sub { color: #9fb0cc; padding-left: 12px; }
+  .bd .r.tot { border-top: 1px solid #3b4d6b; margin-top: 2px; padding-top: 2px; font-weight: bold; }
+  .bd .pct { color: #8fa3c8; font-weight: normal; font-size: 11px; margin-left: 4px; }
+  #resultScreen details { margin-top: 12px; background: #142033; border-radius: 10px; padding: 8px 12px; }
+  #resultScreen summary { cursor: pointer; color: #ffd23f; font-weight: bold; font-size: 14px; }
+  .profileLine { text-align: center; font-size: 12.5px; color: #c8d4e8; margin-top: 10px; }
+  .profileLine b { color: #ffd23f; }
+  .closetGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .item { background: #142033; border: 2px solid #2c3a52; border-radius: 10px; padding: 6px; cursor: pointer; text-align: center; }
+  .item:hover { border-color: #5a6f94; }
+  .item.sel { border-color: #ffc94a; box-shadow: 0 0 0 2px rgba(255,201,74,.3); }
+  .item.locked { cursor: default; }
+  .item.locked canvas { filter: grayscale(1) brightness(.45); }
+  .item.legend { border-color: #ffc94a; background: linear-gradient(160deg, #2a2340, #142033 60%); box-shadow: 0 0 0 1px rgba(255,201,74,.35), 0 0 14px rgba(255,201,74,.25); }
+  .item.legend .nm { color: #ffe08a; }
+  .item.legend.locked .nm::after { content: " ★"; color: #ffc94a; }
+  .item canvas { width: 100%; aspect-ratio: 5 / 3; border-radius: 6px; display: block; }
+  .item .nm { font-size: 13px; font-weight: bold; margin-top: 4px; }
+  .item .cd { font-size: 11px; color: #9fb0cc; min-height: 15px; }
+  .item .pb { height: 5px; background: #0d1420; border-radius: 3px; overflow: hidden; margin-top: 3px; }
+  .item .pb div { height: 100%; background: #ffc94a; }
+  .unlockBox { margin-top: 12px; background: linear-gradient(90deg, #4a3a10, #2a2410); border: 2px solid #ffc94a;
+               border-radius: 10px; padding: 8px 12px; font-size: 13.5px; }
+  .unlockBox b { color: #ffd23f; }
+  #readyMsg { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 5;
+              background: rgba(15,22,35,.8); padding: 18px 30px; border-radius: 16px; }
+  #readyMsg .nm { font-size: 18px; color: #ffd23f; font-weight: bold; }
+  #readyMsg .go { font-size: 26px; font-weight: 900; margin-top: 6px; animation: pulse 1s infinite alternate; }
+  @keyframes pulse { from { opacity: .55; } to { opacity: 1; } }
+  .overlay {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(8, 14, 24, .72); z-index: 10;
+  }
+  .card {
+    background: #1b2638; border-radius: 16px; padding: 24px 28px; width: min(640px, 94vw);
+    max-height: 92vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .card h1 { margin: 0 0 4px; font-size: 30px; text-align: center; }
+  .card h2 { font-size: 16px; margin: 18px 0 8px; color: #ffd23f; }
+  .sub { text-align: center; color: #a9b8d0; font-size: 13px; margin-bottom: 16px; }
+  .nameRow { display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .nameRow input {
+    font-size: 18px; padding: 8px 12px; border-radius: 8px; border: 2px solid #3b4d6b;
+    background: #0f1726; color: #fff; width: 260px; font-family: inherit;
+  }
+  button.big {
+    font-size: 18px; font-weight: bold; padding: 9px 22px; border-radius: 10px; border: none;
+    background: #ffc94a; color: #2a1d00; cursor: pointer; font-family: inherit;
+  }
+  button.big:hover { background: #ffd975; }
+  button.small { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid #556; background: transparent; color: #a9b8d0; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 4px 6px; text-align: left; border-bottom: 1px solid #2c3a52; }
+  th { color: #8fa3c8; font-weight: normal; }
+  td.num { text-align: right; font-weight: bold; }
+  tr.me td { background: rgba(255, 201, 74, .18); }
+  .rules { font-size: 12.5px; color: #c8d4e8; line-height: 1.75; }
+  .rules b { color: #fff; }
+  .gateList { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 12px; color: #c8d4e8; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 6px; }
+  .tabs button { font-size: 12px; padding: 4px 12px; border-radius: 6px; border: 1px solid #3b4d6b; background: #0f1726; color: #a9b8d0; cursor: pointer; }
+  .tabs button.on { border-color: #ffc94a; color: #ffc94a; }
+  .resultScore { font-size: 40px; font-weight: 900; text-align: center; color: #ffd23f; margin: 4px 0; }
+  .resultFormula { text-align: center; font-size: 13px; color: #c8d4e8; margin-bottom: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; font-size: 13.5px; }
+  .grid2 div { display: flex; justify-content: space-between; }
+  .grid2 b { color: #ffe9a0; }
+  .center { text-align: center; margin-top: 18px; display: flex; gap: 10px; justify-content: center; }
+  .hidden { display: none !important; }
+  /* ===== スマホ用（body.mobile のときだけ） ===== */
+  #mTop, #mBottom { display: none; }
+  body.mobile { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  body.mobile canvas#cv { position: fixed; left: 0; }
+  body.mobile #mTop {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 4; display: flex; flex-direction: column; gap: 5px;
+    padding: calc(6px + env(safe-area-inset-top)) 10px 7px; background: rgba(12,18,30,.96); border-bottom: 2px solid #2c3a52;
+  }
+  body.mobile #mTop.off, body.mobile #mBottom.off { display: none; }
+  body.mobile .mRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  body.mobile #scorePanel { position: static; background: none; padding: 0; min-width: 0; }
+  body.mobile #pName { font-size: 11px; }
+  body.mobile #pScore { font-size: 22px; }
+  body.mobile #pFormula { font-size: 10px; line-height: 1.4; }
+  body.mobile #stoneCount { position: static; transform: none; font-size: 20px; padding: 2px 12px; border-width: 2px; border-radius: 12px; }
+  body.mobile #stoneCount small { font-size: 11px; margin-right: 4px; }
+  body.mobile #stoneCount.up { transform: scale(1.1); }
+  body.mobile #stoneCount.down { transform: scale(0.95); }
+  body.mobile #energyWrap, body.mobile #effects { position: static; transform: none; width: 100%; min-width: 0; }
+  body.mobile #energyBar { height: 24px; border-width: 2px; }
+  body.mobile #energyText { font-size: 13px; }
+  body.mobile .fxbar { height: 18px; }
+  body.mobile .fxtext { font-size: 11px; }
+  body.mobile #effects { gap: 4px; }
+  body.mobile #statPanel, body.mobile #detailBtn { display: none !important; }
+  body.mobile #mBottom {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: rgba(12,18,30,.96); border-top: 2px solid #2c3a52;
+  }
+  body.mobile .mBtn {
+    height: 96px; border-radius: 18px; border: 3px solid #5a6f94; background: #22304a; color: #fff;
+    font-size: 40px; font-weight: 900; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  body.mobile .mBtn.on { background: #ffc94a; color: #2a1d00; border-color: #fff; }
+  body.mobile .mMid { display: flex; flex-direction: column; gap: 8px; }
+  body.mobile .mMid button {
+    flex: 1; border-radius: 12px; border: 2px solid #3b4d6b; background: #1b2638; color: #ffc94a; font-size: 12px; font-weight: bold;
+    font-family: inherit; padding: 0; touch-action: manipulation;
+  }
+  body.mobile #detailPanel { left: 8px; right: 8px; width: auto; max-height: 55vh; }
+  body.mobile .card { padding: 18px 16px; }
+  body.mobile .card h1 { font-size: 24px; }
+  body.mobile .nameRow { flex-wrap: wrap; }
+  body.mobile .nameRow input { width: 100%; }
+  body.mobile .gateList { grid-template-columns: 1fr; }
+  body.mobile #readyMsg { padding: 14px 18px; width: 86vw; }
+  body.mobile #readyMsg .go { font-size: 22px; }
+  #pauseMsg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 900; text-shadow: 0 3px 10px #000; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="scorePanel" class="panel hidden">
+  <div id="pName"></div>
+  <div id="pScore">0</div>
+  <div id="pFormula"></div>
+</div>
+<div id="statPanel" class="panel hidden"></div>
+<div id="effects"></div>
+<div id="energyWrap" class="hidden">
+  <div id="energyBar"><div id="energyFill"></div><div id="energyText">⚡ エネルギー <span id="energyNum" style="margin-left:8px"></span></div></div>
+</div>
+<div id="pauseMsg" class="hidden">一時停止中（P で再開）</div>
+<!-- スマホ用：川の上（得点・石の数・ゲージ）と川の下（左右ボタン） -->
+<div id="mTop" class="off"><div class="mRow" id="mRow1"></div></div>
+<div id="mBottom" class="off">
+  <button class="mBtn" id="btnL">◀</button>
+  <button class="mBtn" id="btnR">▶</button>
+</div>
+<div id="stoneCount" class="hidden"><small>🪨 石の数</small><span id="stoneNum">1</span></div>
+<div id="detailPanel" class="hidden"></div>
+<div id="readyMsg" class="hidden"><div class="nm" id="readyName"></div><div class="go">クリック または Enter で投げる！</div></div>
+
+<!-- 確認ボックス -->
+<div id="confirmBox" class="overlay hidden" style="z-index:30">
+  <div class="card" style="width:min(420px,92vw);text-align:center">
+    <div id="confirmMsg" style="font-size:15px;line-height:1.7"></div>
+    <div class="center"><button class="big" id="confirmOk">OK</button><button class="big" id="confirmNo" style="background:#3b4d6b;color:#fff">やめる</button></div>
+  </div>
+</div>
+
+<!-- タイトル画面 -->
+<div id="titleScreen" class="overlay">
+  <div class="card">
+    <h1>🪨 一億個の石で水切りしたい</h1>
+    <div class="sub">ゲートをくぐって石を増やし、得点をインフレさせろ！</div>
+    <div class="nameRow">
+      <input id="nameInput" maxlength="16" placeholder="石の名前をつけよう">
+      <button class="big" id="startBtn">スタート</button>
+      <button class="big" id="closetBtn" style="background:#3b4d6b;color:#fff">🎨 着せ替え</button>
+    </div>
+    <div class="profileLine" id="profileLine"></div>
+    <h2>遊び方</h2>
+    <div class="rules">
+      <b>マウス</b> または <b>← → / A D</b> で石の群れを左右に動かす。<br>
+      得点 ＝ <b>跳ね点</b>（跳ねた石の数 × 跳ねた回数 × 基礎点 の累計）× <b>特殊倍率</b> ＋ <b>特殊点</b><br>
+      川の外にはみ出した石（問答無用で消える）、岩・流木にぶつかった石、渦潮に飲まれた石は消える。<br>
+      エネルギーは全部の石で共通。時間で減り、0 になると全部沈む。石が全滅しても終了。
+    </div>
+    <h2>ゲート一覧</h2>
+    <div class="gateList">
+      <div>🔵 <b>+N 石</b>：群れの周りに石を追加</div>
+      <div>🔵 <b>×N 石</b>：くぐった石が増える</div>
+      <div>🟣 <b>集合</b>：群れをぎゅっと集める</div>
+      <div>🟢 <b>エネルギー + / ⚡エネルギー +</b>：飛べる時間が延びる（多めに出現）</div>
+      <div>🟡 <b>基礎点 +</b>：1回跳ねるごとの点が上がる</div>
+      <div>🟡 <b>得点 ×N</b>：特殊倍率アップ</div>
+      <div>🟠 <b>岩衝突 +</b>：岩に当たると高得点</div>
+      <div>🟡 <b>金の石</b>：跳ね点が高い特別な石</div>
+      <div>🔵 <b>跳ね速度 UP</b>：跳ねる回数が増える</div>
+      <div>🔴 <b>障害物破壊</b>：一定時間、岩や流木を壊して得点（渦潮は消せない）</div>
+      <div>🩵 <b>ハイジャンプ</b>：高く跳ねて跳ね点×3・岩を飛び越す</div>
+      <div>🟠 <b>特殊点 ×2 / +</b>：追加得点アップ</div>
+      <div>❔ <b>？？？</b>：何が起きるかはお楽しみ</div>
+      <div>⛔ <b>−N 石 / 石 半減 / 散らばる / エネルギー −</b>：ハズレ</div>
+    </div>
+    <h2>記録</h2>
+    <div class="tabs"><button data-tab="rank" class="on">ランキング</button><button data-tab="hist">最近の履歴</button></div>
+    <div id="titleRecords"></div>
+  </div>
+</div>
+
+<!-- 着せ替え画面 -->
+<div id="closetScreen" class="overlay hidden">
+  <div class="card" style="width:min(760px,96vw)">
+    <h1>🎨 着せ替え</h1>
+    <div class="sub">遊ぶほどデザインが増えます。見た目が変わるだけで、有利・不利はありません。</div>
+    <div class="tabs" id="closetTabs">
+      <button data-cat="stone" class="on">🪨 石</button><button data-cat="theme">🏞 背景</button><button data-cat="rock">⛰ 岩</button>
+    </div>
+    <div class="closetGrid" id="closetGrid"></div>
+    <div class="center"><button class="big" id="closetClose">もどる</button></div>
+    <div style="text-align:right;margin-top:10px"><button class="small" id="resetDesigns">解放したデザインをリセット</button></div>
+  </div>
+</div>
+
+<!-- 結果画面 -->
+<div id="resultScreen" class="overlay hidden">
+  <div class="card">
+    <h1 id="resultTitle">終了！</h1>
+    <div class="sub" id="resultReason"></div>
+    <div class="resultScore" id="resultScore"></div>
+    <div class="resultFormula" id="resultFormula"></div>
+    <div class="grid2" id="resultStats"></div>
+    <div id="resultUnlock"></div>
+    <details id="resultDetailBox"><summary>📊 得点の詳細</summary><div id="resultDetail" class="bd" style="margin-top:8px"></div></details>
+    <h2>記録</h2>
+    <div class="tabs"><button data-tab="rank" class="on">ランキング</button><button data-tab="hist">最近の履歴</button></div>
+    <div id="resultRecords"></div>
+    <div class="center">
+      <button class="big" id="retryBtn">もう一回（Enter）</button>
+      <button class="big" id="titleBtn" style="background:#3b4d6b;color:#fff">タイトルへ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  数値の表示（日本語の大きな数の単位でインフレ感を出す）
+// =====================================================================
+const UNITS = ["", "万", "億", "兆", "京", "垓", "𥝱", "穣", "溝", "澗", "正", "載", "極",
+               "恒河沙", "阿僧祇", "那由他", "不可思議", "無量大数"];
+function fmt(x) {
+  if (!isFinite(x)) return "∞";
+  if (x < 0) return "-" + fmt(-x);
+  if (x < 10000) return Math.floor(x).toLocaleString();
+  const k = Math.floor(Math.log10(x) / 4);
+  if (k < UNITS.length) {
+    const v = x / Math.pow(10, 4 * k);
+    return (v >= 1000 ? v.toFixed(0) : v >= 100 ? v.toFixed(1) : v.toFixed(2)) + UNITS[k];
+  }
+  return x.toExponential(2);
+}
+const gauss = () => {
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+};
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function hash(n) { n = Math.sin(n * 127.1) * 43758.5453; return n - Math.floor(n); }
+
+// =====================================================================
+//  記録の保存（ブラウザの localStorage）
+// =====================================================================
+const REC_KEY = "ishikiri-gates-records";
+const NAME_KEY = "ishikiri-gates-name";
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(REC_KEY)) || []; } catch { return []; }
+}
+function saveRecord(rec) {
+  const list = loadRecords();
+  list.push(rec);
+  while (list.length > 200) list.shift();
+  try { localStorage.setItem(REC_KEY, JSON.stringify(list)); } catch {}
+}
+function renderRecords(el, tab, highlightId) {
+  const list = loadRecords();
+  if (!list.length) { el.innerHTML = '<div class="sub">まだ記録がありません</div>'; return; }
+  let rows, head;
+  if (tab === "rank") {
+    rows = [...list].sort((a, b) => b.score - a.score).slice(0, 10);
+    head = "<tr><th>#</th><th>石の名前</th><th>得点</th><th>距離</th><th>最大石数</th></tr>";
+  } else {
+    rows = [...list].reverse().slice(0, 15);
+    head = "<tr><th>日時</th><th>石の名前</th><th>得点</th><th>距離</th><th>最大石数</th></tr>";
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  el.innerHTML = "<table>" + head + rows.map((r, i) => {
+    const d = new Date(r.date);
+    const first = tab === "rank" ? (i + 1)
+      : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return `<tr class="${r.id === highlightId ? "me" : ""}"><td>${first}</td><td>${esc(r.name)}</td>
+      <td class="num">${fmt(r.score)}</td><td class="num">${fmt(r.distance)}m</td><td class="num">${fmt(r.maxStones)}</td></tr>`;
+  }).join("") + "</table>" +
+  `<div style="text-align:right;margin-top:6px"><button class="small" onclick="clearRecords()">得点の記録を消去</button></div>`;
+}
+function clearRecords() {
+  askConfirm("得点の記録（ランキング・履歴）をすべて消去しますか？<br><small>解放したデザインはそのまま残ります</small>", "消去する", () => {
+    try { localStorage.removeItem(REC_KEY); } catch {}
+    refreshRecordViews();
+  });
+}
+// 画面内の確認ボックス（ブラウザの confirm() が使えない環境でも動く）
+function askConfirm(html, okLabel, onYes) {
+  const box = document.getElementById("confirmBox");
+  document.getElementById("confirmMsg").innerHTML = html;
+  const ok = document.getElementById("confirmOk"), no = document.getElementById("confirmNo");
+  ok.textContent = okLabel;
+  box.classList.remove("hidden");
+  const close = () => { box.classList.add("hidden"); ok.onclick = no.onclick = null; };
+  ok.onclick = () => { close(); onYes(); };
+  no.onclick = close;
+}
+const tabState = { titleRecords: "rank", resultRecords: "rank" };
+let lastRecordId = null;
+function refreshRecordViews() {
+  renderRecords(document.getElementById("titleRecords"), tabState.titleRecords, lastRecordId);
+  renderRecords(document.getElementById("resultRecords"), tabState.resultRecords, lastRecordId);
+}
+document.querySelectorAll(".tabs").forEach(tabs => {
+  const target = tabs.nextElementSibling.id;
+  tabs.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    tabs.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tabState[target] = b.dataset.tab;
+    refreshRecordViews();
+  }));
+});
+
+// =====================================================================
+//  画面
+// =====================================================================
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const RIVER_W = 650;          // 川幅（ワールド単位）
+const BANK_W = 150;
+const ENT_CAP = 1200;         // 個別に計算する石の上限（超えたら1粒に複数個をまとめる）
+let CW, CH, SCALE, OX, DPR;
+// スマホ（タッチ操作の端末）か、幅の狭い画面ならスマホ用の配置にする
+const MOBILE = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 700;
+if (MOBILE) document.body.classList.add("mobile");
+let TOPH = 0;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  CW = window.innerWidth; CH = window.innerHeight;
+  if (MOBILE) {
+    // 川は上のバーと下の操作エリアの間だけに描く
+    const top = document.getElementById("mTop"), bot = document.getElementById("mBottom");
+    TOPH = top && !top.classList.contains("off") ? top.offsetHeight : 0;
+    const botH = bot && !bot.classList.contains("off") ? bot.offsetHeight : 0;
+    CH = Math.max(200, window.innerHeight - TOPH - botH);
+    cv.style.top = TOPH + "px";
+  }
+  cv.width = CW * DPR; cv.height = CH * DPR;
+  cv.style.width = CW + "px"; cv.style.height = CH + "px";
+  SCALE = MOBILE ? Math.min(1.5, CW / (RIVER_W + 60), CH / 480) : Math.min(1.5, CW / (RIVER_W + BANK_W * 2), CH / 560);
+  OX = CW / 2;
+}
+window.addEventListener("resize", resize);
+resize();
+const ANCHOR = 0.74;  // 群れの先頭を画面の上から何割の位置に置くか
+const sx = x => OX + x * SCALE;
+const sy = y => CH * ANCHOR - (y - G.camY) * SCALE;
+
+// =====================================================================
+//  ゲーム状態
+// =====================================================================
+let G = null;
+const ENERGY_MAX = 100;   // エネルギーの上限
+const ENERGY_BALANCE = 0.5;  // エネルギーゲートを何割くぐれば横ばいになるか
+let mode = "title";     // title / play / ending / result
+let paused = false;
+
+function newGame(name) {
+  G = {
+    name, time: 0, camY: 0, groupX: 0, targetX: 0, speed: 280,
+    energy: 100, maxEnergy: 100,
+    ents: [], gates: [], rocks: [], logs: [], whirls: [],
+    ripples: [], texts: [], debris: [],
+    skipScore: 0, mult: 1, bonus: 0, bonusMult: 1, skipBase: 1, rockHitBonus: 0,
+    skipRate: 2.2, amp: 10, goldValue: 10,
+    effects: { breaker: 0, high: 0 }, effectsMax: { breaker: 1, high: 1 },
+    bd: { skipNormal: 0, skipGold: 0, skipHigh: 0, rockBreak: 0, logBreak: 0, rockHit: 0, coin: 0 },
+    gateLog: {}, gambleLog: {}, multLog: [],
+    formT: 0, globalPhase: 0, skips: 0, stoneSkips: 0,
+    nextSegY: 300, segIdx: 0, ending: 0, endReason: "",
+    stats: { maxStones: 1, rocksBroken: 0, rockHits: 0, gates: 0, lostBank: 0, lostWhirl: 0 },
+    total: 1,
+    delta: { gain: 0, gx: 0, gy: 0, gn: 0, loss: 0, lx: 0, ly: 0, ln: 0, timer: 0 },
+  };
+  addStones(1, false, 4);
+  generateAhead();
+}
+
+const tierAt = y => 1 + y / 1500;
+
+function makeEnt(rx, ry, n, gold) {
+  return {
+    rx, ry, tx: rx, ty: ry, n, gold, v: gold ? G.goldValue : 1,
+    phase: Math.random() * Math.PI, k: 0, dead: false, seed: Math.random(),
+    lastGate: lastGateBefore(G.camY + ry),
+  };
+}
+// y 以下にある最後のゲートの番号（ゲートは y の小さい順に並んでいる）
+function lastGateBefore(y) {
+  let i = G.gates.length - 1;
+  while (i >= 0 && G.gates[i].y > y) i--;
+  return i;
+}
+
+// 石の増減を記録して、まとめて石の近くに表示する
+function noteChange(d, x, y) {
+  if (mode !== "play" || !d) return;
+  const D = G.delta;
+  if (d > 0) { D.gain += d; D.gx += x; D.gy += y; D.gn++; }
+  else { D.loss -= d; D.lx += x; D.ly += y; D.ln++; }
+}
+function flushChanges(dt) {
+  const D = G.delta;
+  D.timer -= dt;
+  if (D.timer > 0) return;
+  D.timer = 0.25;
+  if (D.gain > 0) {
+    floatText(D.gx / D.gn - 25, D.gy / D.gn + 20, "+" + fmt(D.gain), "#7dffa0", 20);
+    D.gain = D.gx = D.gy = D.gn = 0;
+  }
+  if (D.loss > 0) {
+    floatText(D.lx / D.ln + 25, D.ly / D.ln + 20, "−" + fmt(D.loss), "#ff6b6b", 20);
+    D.loss = D.lx = D.ly = D.ln = 0;
+  }
+}
+
+// 群れの周囲に正規分布で石を追加
+function addStones(count, gold, sigma = 28) {
+  count = Math.floor(count);
+  if (count <= 0) return;
+  const free = ENT_CAP - G.ents.length;
+  const cx = avgRx();
+  noteChange(count, G.groupX + cx, G.camY);
+  if (gold && mode === "play") G.stats.goldGot = (G.stats.goldGot || 0) + count;
+  if (free > 0) {
+    const make = Math.min(count, free);
+    const each = Math.floor(count / make);
+    let rem = count - each * make;
+    for (let i = 0; i < make; i++) {
+      const n = each + (rem-- > 0 ? 1 : 0);
+      const e = makeEnt(cx + gauss() * sigma, gauss() * sigma * 0.6, n, gold);
+      e.k = Math.floor(e.phase / Math.PI);
+      G.ents.push(e);
+    }
+  } else {
+    // 上限なら既存の石にまとめる
+    const pool = G.ents.filter(e => e.gold === gold);
+    const target = pool.length ? pool : G.ents;
+    const k = Math.min(60, target.length);
+    for (let i = 0; i < k; i++) target[Math.floor(Math.random() * target.length)].n += count / k;
+  }
+}
+function meanRx() {
+  if (!G.ents.length) return 0;
+  let s = 0;
+  for (const e of G.ents) s += e.rx;
+  return s / G.ents.length;
+}
+function avgRx() {
+  if (!G.ents.length) return 0;
+  let s = 0, w = 0;
+  for (const e of G.ents) { s += e.rx; w++; }
+  return clamp(s / w, -RIVER_W / 2 + 30 - G.groupX, RIVER_W / 2 - 30 - G.groupX);
+}
+function multiplyEnt(e, m) {
+  noteChange(e.n * (m - 1), G.groupX + e.rx, G.camY + e.ry);
+  const free = ENT_CAP - G.ents.length;
+  if (free >= m - 1) {
+    for (let i = 0; i < m - 1; i++) {
+      const c = { ...e, rx: e.rx + gauss() * 12, ry: e.ry + gauss() * 8 };
+      c.tx = c.rx; c.ty = c.ry;
+      c.seed = Math.random();
+      c.phase = Math.random() * Math.PI; c.k = Math.floor(c.phase / Math.PI);
+      G.ents.push(c);
+    }
+  } else e.n *= m;
+}
+
+// =====================================================================
+//  ゲートの種類
+// =====================================================================
+const C = { blue: "#2f8cff", purple: "#9b5cff", green: "#22c06b", yellow: "#e6b400", orange: "#ff8a1f",
+            red: "#e5484d", cyan: "#21c7d9", gray: "#555", gold: "#ffb800" };
+function gateDefs(t) {
+  const r = n => Math.max(1, Math.round(n));
+  return {
+    add:      { w: 14, good: true,  color: C.blue,   make: () => { const v = r(4 * t ** 1.6); return { v, label: `+${fmt(v)} 石` }; } },
+    mul:      { w: 9,  good: true,  color: C.blue,   make: () => { const v = t > 10 && Math.random() < .25 ? 5 : t > 4 && Math.random() < .35 ? 3 : 2; return { v, label: `×${v} 石` }; } },
+    magnet:   { w: 4,  good: true,  color: C.purple, make: () => ({ label: "集合" }) },
+    energy:   { w: 18, good: true,  color: C.green,  make: () => { const v = r(22 + 3 * Math.sqrt(t)); return { v, label: `エネルギー +${v}` }; } },
+    energyBig:{ w: 5,  good: true,  color: "#0fa85a", make: () => { const v = r(55 + 5 * Math.sqrt(t)); return { v, label: `⚡エネルギー +${v}` }; } },
+    base:     { w: 9,  good: true,  color: C.yellow, make: () => { const v = r(3 * t ** 2.2); return { v, label: `基礎点 +${fmt(v)}` }; } },
+    basex:    { w: 4,  good: true,  color: C.yellow, make: () => { const v = t > 8 && Math.random() < .4 ? 3 : 2; return { v, label: `基礎点 ×${v}` }; } },
+    // 得点倍率：基本は足し算（+1〜+3、距離で増える）。4枚に1枚くらいは掛け算（×1.1〜×2.0、距離によらない）
+    xmult:    { w: 4,  good: true,  color: C.gold,   make: () => {
+      if (Math.random() < 0.25) { const v = Math.round((1.1 + Math.random() * 0.9) * 10) / 10; return { v, mul: true, label: `得点倍率 ×${v}` }; }
+      const v = t > 15 ? 3 : t > 6 ? 2 : 1; return { v, mul: false, label: `得点倍率 +${v}` }; } },
+    rockbonus:{ w: 5,  good: true,  color: C.orange, make: () => { const v = r(150 * t ** 2); return { v, label: `岩衝突 +${fmt(v)}` }; } },
+    gold:     { w: 6,  good: true,  color: C.gold,   make: () => { const v = r(1 + t * 0.8); return { v, label: `金の石 +${fmt(v)}` }; } },
+    skipspeed:{ w: 4,  good: true,  color: C.blue,   make: () => ({ label: "跳ね速度 UP" }) },
+    breaker:  { w: 4,  good: true,  color: C.red,    make: () => ({ v: 6, label: "障害物破壊 6秒" }) },
+    high:     { w: 4,  good: true,  color: C.cyan,   make: () => ({ v: 6, label: "ハイジャンプ 6秒" }) },
+    bonusx:   { w: 1,  good: true,  color: C.orange, make: () => ({ v: 2, label: "特殊点 ×2" }) },
+    coin:     { w: 4,  good: true,  color: C.orange, make: () => { const v = Math.round(20 + t * 4); return { v, label: `特殊点 +石×${v}` }; } },
+    gamble:   { w: 3,  good: true,  color: "#d14bd6", make: () => ({ label: "？？？" }) },
+    sub:      { w: 6,  good: false, color: C.gray,   make: () => { const v = r(3 * t ** 1.4); return { v, label: `−${fmt(v)} 石` }; } },
+    half:     { w: 3,  good: false, color: C.gray,   make: () => ({ label: "石 半減" }) },
+    drain:    { w: 3,  good: false, color: C.gray,   make: () => ({ v: 20, label: "エネルギー −20" }) },
+    scatter:  { w: 3,  good: false, color: C.gray,   make: () => ({ label: "散らばる" }) },
+  };
+}
+function pickWeighted(defs, filter) {
+  const keys = Object.keys(defs).filter(k => filter(defs[k], k));
+  let total = keys.reduce((s, k) => s + defs[k].w, 0);
+  let x = Math.random() * total;
+  for (const k of keys) { x -= defs[k].w; if (x <= 0) return k; }
+  return keys[keys.length - 1];
+}
+// ゲートの種類を区間ごとに決める
+function pickKinds(t, segIdx) {
+  const defs = gateDefs(t);
+  if (segIdx === 0) return ["add", "mul", "energy"];
+  if (segIdx === 1) return ["mul", "energy", "add"];
+  const count = 2 + (Math.random() < 0.55 ? 1 : 0) + (t > 3 && Math.random() < 0.4 ? 1 : 0);
+  const kinds = [];
+  // エネルギーゲートの最低保証：どの区間にも必ず1つは出る（さらに抽選でもう1つ出ることがある）
+  kinds.push(Math.random() < 0.8 ? "energy" : "energyBig");
+  while (kinds.length < count) {
+    const allowBad = kinds.length > 0 && Math.random() < 0.28;
+    kinds.push(pickWeighted(defs, (d, k) => (allowBad || d.good) && !kinds.includes(k)));
+  }
+  return kinds;
+}
+
+// 2つの区間が重なるか
+const overlap = (a0, a1, b0, b1, m = 0) => a0 < b1 + m && b0 < a1 + m;
+
+// ルート上のゲート・障害物を先まで生成（区間ごと）
+function generateAhead() {
+  const ahead = G.camY + CH / SCALE + 400;
+  while (G.nextSegY < ahead) {
+    const s = G.nextSegY;
+    const L = 560;   // 区間の長さは一定
+    const t = tierAt(s);
+    const defs = gateDefs(t);
+
+    // ゲート：位置も幅も完全ランダム（幅は川幅の1/5〜1/2）
+    const placed = [];
+    for (const k of pickKinds(t, G.segIdx)) {
+      for (let tryN = 0; tryN < 40; tryN++) {
+        const w = rand(RIVER_W / 5, RIVER_W / 2);
+        const x0 = rand(-RIVER_W / 2, RIVER_W / 2 - w);
+        const y = rand(s + 40, s + L - 40);
+        if (placed.some(g => Math.abs(g.y - y) < 75 && overlap(x0, x0 + w, g.x0, g.x1, 15))) continue;
+        if (placed.some(g => Math.abs(g.y - y) < 2)) continue;
+        const d = defs[k];
+        placed.push({ kind: k, ...d.make(), color: d.color, good: d.good,
+                      x0, x1: x0 + w, y, hits: 0, budget: null });
+        break;
+      }
+    }
+    placed.sort((a, b) => a.y - b.y);
+    G.gates.push(...placed);
+
+    // 障害物はゲートと重ならない場所に置く
+    const freeSpot = (x, y, r) => !placed.some(g => Math.abs(g.y - y) < r + 32 && overlap(x - r, x + r, g.x0, g.x1, 4));
+    if (G.segIdx > 0) {
+      const n = Math.floor((2.5 + Math.random() * 2.5) * 1.3);   // 岩の数は距離によらず一定（3〜5個）
+      for (let i = 0; i < n; i++) {
+        for (let tryN = 0; tryN < 20; tryN++) {
+          const r = Math.random() < 0.15 ? rand(44, 62) : rand(15, 32);   // ときどき大岩
+          const x = rand(-RIVER_W / 2 + 25, RIVER_W / 2 - 25), y = rand(s + 20, s + L - 20);
+          if (!freeSpot(x, y, r)) continue;
+          G.rocks.push({ x, y, r, seed: Math.random() * 1000, alive: true });
+          break;
+        }
+      }
+    }
+    // 流木（左右に動く）
+    if (t > 1.8 && Math.random() < 0.35) {
+      for (let tryN = 0; tryN < 20; tryN++) {
+        const y = rand(s + 30, s + L - 30);
+        if (placed.some(g => Math.abs(g.y - y) < 50)) continue;
+        G.logs.push({ y, w: rand(90, 140), amp: RIVER_W / 2 - 70, sp: rand(0.6, 1.4), ph: Math.random() * 6, alive: true, x: 0 });
+        break;
+      }
+    }
+    // 渦潮（吸い込む）
+    if (t > 2.6 && Math.random() < 0.28) {
+      for (let tryN = 0; tryN < 20; tryN++) {
+        const x = rand(-RIVER_W / 2 + 80, RIVER_W / 2 - 80), y = rand(s + 90, s + L - 90);
+        if (!freeSpot(x, y, 85)) continue;
+        G.whirls.push({ x, y, r: 85, core: 16 });
+        break;
+      }
+    }
+    G.nextSegY += L;
+    G.segIdx++;
+  }
+}
+
+// =====================================================================
+//  ゲート効果
+// =====================================================================
+function halveEnt(e) {
+  const before = e.n;
+  if (e.n > 1) e.n = Math.floor(e.n / 2);
+  else if (Math.random() < .5) { e.n = 0; e.dead = true; }
+  noteChange(e.n - before, G.groupX + e.rx, G.camY + e.ry);
+}
+
+function applyGate(g, e) {
+  const once = !["mul", "sub", "half"].includes(g.kind);
+  const first = g.hits === 0;
+  g.hits++;
+  if (first) {
+    G.stats.gates++;
+    G.gateLog[g.kind] = (G.gateLog[g.kind] || 0) + 1;
+    floatText((g.x0 + g.x1) / 2, g.y + 45, g.label, g.good ? "#fff" : "#ff9a9a", 18);
+  }
+  if (once && !first) return;
+  switch (g.kind) {
+    case "add": addStones(g.v, false); break;
+    case "mul": multiplyEnt(e, g.v); break;
+    case "sub": {
+      if (g.budget === null) g.budget = g.v;
+      const take = Math.min(e.n, g.budget);
+      e.n -= take; g.budget -= take;
+      noteChange(-take, G.groupX + e.rx, G.camY + e.ry);
+      if (e.n <= 0) e.dead = true;
+      break;
+    }
+    case "half": halveEnt(e); break;
+    case "magnet": setFormation("magnet"); break;
+    case "scatter": setFormation("scatter"); break;
+    case "energyBig":
+    case "energy": G.energy = Math.min(ENERGY_MAX, G.energy + g.v); break;
+    case "drain": G.energy = Math.max(1, G.energy - g.v); break;
+    case "base": G.skipBase += g.v; break;
+    case "basex": G.skipBase *= g.v; break;
+    case "xmult": if (g.mul) G.mult *= g.v; else G.mult += g.v; G.multLog.push("得点倍率ゲート " + (g.mul ? "×" : "+") + g.v); break;
+    case "rockbonus": G.rockHitBonus += g.v; break;
+    case "gold": addStones(g.v, true); break;
+    case "skipspeed": G.skipRate *= 1.2; break;
+    case "breaker": setEffect("breaker", g.v); break;
+    case "high": setEffect("high", g.v); break;
+    case "bonusx": G.bonusMult *= g.v; break;
+    case "coin": {   // 今の稼ぎ（石の数×基礎点）に比例するのでインフレについてくる
+      const pts = (200 * tierAt(g.y) ** 2 + G.total * G.skipBase * g.v) * G.bonusMult;
+      G.bonus += pts; G.bd.coin += pts;
+      floatText(G.groupX, G.camY + 70, "+" + fmt(pts), "#ffb15c", 20);
+      break;
+    }
+    case "gamble": gamble(g); break;
+  }
+}
+
+function gamble(g) {
+  const t = tierAt(g.y);
+  const outcomes = [
+    ["大当たり！全部の石 ×5", "#ffd23f", () => { for (const e of [...G.ents]) multiplyEnt(e, 5); }],
+    ["大当たり！得点倍率 +5", "#ffd23f", () => { G.mult += 5; G.multLog.push("？？？ +5"); }],
+    ["超大当たり！得点倍率 ×2", "#ffd23f", () => { G.mult *= 2; G.multLog.push("？？？ ×2"); }],
+    ["大当たり！基礎点 ×5", "#ffd23f", () => { G.skipBase *= 5; }],
+    ["エネルギー満タン！", "#7dffa0", () => { G.energy = ENERGY_MAX; }],
+    ["金の石の雨！", "#ffd23f", () => addStones(Math.round(5 * t), true, 50)],
+    ["無敵の障害物破壊 12秒！", "#ff8080", () => setEffect("breaker", 12)],
+    ["ハズレ… 石が半分に", "#ff9a9a", () => { for (const e of G.ents) halveEnt(e); }],
+    ["ハズレ… エネルギー −30", "#ff9a9a", () => { G.energy = Math.max(1, G.energy - 30); }],
+    ["ハズレ… 散らばった！", "#ff9a9a", () => setFormation("scatter")],
+  ];
+  const [label, color, fn] = outcomes[Math.floor(Math.random() * outcomes.length)];
+  fn();
+  G.gambleLog[label] = (G.gambleLog[label] || 0) + 1;
+  floatText(G.groupX, G.camY + 110, label, color, 24);
+}
+
+function setEffect(name, v) {
+  G.effects[name] = Math.max(G.effects[name], v);
+  G.effectsMax[name] = G.effects[name];
+}
+
+function setFormation(type) {
+  const ents = G.ents;
+  if (type === "magnet") {
+    const cx = avgRx();
+    ents.forEach(e => { e.tx = cx + (e.rx - cx) * 0.25; e.ty = e.ry * 0.4; });
+  } else if (type === "scatter") {
+    ents.forEach(e => { e.tx = gauss() * 110; e.ty = gauss() * 40; });
+  }
+  G.formT = 0.8;
+}
+
+// =====================================================================
+//  エフェクト
+// =====================================================================
+function floatText(x, y, text, color, size = 16) {
+  if (G.texts.length > 40) G.texts.shift();
+  G.texts.push({ x, y, text, color, size, age: 0 });
+}
+function ripple(x, y, big) {
+  if (G.ripples.length > 260) return;
+  G.ripples.push({ x, y, age: 0, big });
+}
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    if (G.debris.length > 400) break;
+    const a = Math.random() * Math.PI * 2, s = rand(60, 220);
+    G.debris.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, age: 0, life: rand(.4, .9), color, size: rand(2, 5) });
+  }
+}
+
+// =====================================================================
+//  更新
+// =====================================================================
+const keys = {};
+let mouseX = null, useMouse = false;
+
+function update(dt) {
+  G.time += dt;
+  const ending = mode === "ending";
+
+  // 前進
+  const prevCam = G.camY;
+  G.speed = 280 + Math.min(340, G.camY * 0.012);
+  if (!ending) G.camY += G.speed * dt;
+  const t = tierAt(G.camY);
+
+  // 左右操作
+  if (!ending) {
+    let dir = 0;
+    if (keys.ArrowLeft || keys.KeyA) dir -= 1;
+    if (keys.ArrowRight || keys.KeyD) dir += 1;
+    const SPEED = 820;
+    if (dir) { useMouse = false; G.targetX += dir * SPEED * dt; }
+    else if (useMouse && mouseX !== null) {
+      // マウスが石の群れより右なら右へ、左なら左へ一定速度で動く（キーボードと同じ感覚）
+      const diff = (mouseX - OX) / SCALE - (G.targetX + meanRx());
+      if (Math.abs(diff) > 8) G.targetX += Math.sign(diff) * Math.min(Math.abs(diff), SPEED * dt);
+    }
+    // 川の外にも動かせる（はみ出した石は消える）
+    G.targetX = clamp(G.targetX, -RIVER_W / 2 - BANK_W, RIVER_W / 2 + BANK_W);
+    G.groupX += (G.targetX - G.groupX) * Math.min(1, dt * 9);
+  }
+
+  // エネルギー
+  if (!ending) {
+    // 減り方は「進んだ距離あたり」で決める。速くなると、その分だけ1秒あたりの減りも速くなる。
+    // 1区間（560）で出るエネルギーゲートの回復量の期待値 ≒ 0.9個 ×（28.6 + 3.4√t）。その半分を1区間で消費する
+    // ＝ エネルギーゲートを半分くぐれば横ばい、という釣り合い。
+    // ※ 最低保証でゲートが増えた分は、減り方に反映させず「長く飛べる」側に回している
+    const drainPerUnit = ENERGY_BALANCE * 0.9 * (28.6 + 3.4 * Math.sqrt(t)) / 560;
+    G.energy -= G.speed * drainPerUnit * dt;
+    if (G.energy <= 0) { G.energy = 0; startEnding("エネルギー切れ… 石は静かに沈んだ"); }
+  }
+  for (const k in G.effects) G.effects[k] = Math.max(0, G.effects[k] - dt);
+  const high = G.effects.high > 0, breaker = G.effects.breaker > 0;
+  const amp = high ? 28 : 10;
+
+  // 全体の跳ね回数
+  if (!ending) {
+    G.globalPhase += dt * G.skipRate * Math.PI;
+    G.skips = Math.floor(G.globalPhase / Math.PI);
+  }
+
+  // 隊形の変化
+  const forming = G.formT > 0;
+  if (forming) G.formT -= dt;
+
+  // 障害物の候補（群れの近くだけ）
+  let minRy = 0;
+  for (const e of G.ents) if (e.ry < minRy) minRy = e.ry;
+  const yLo = G.camY + minRy - 60, yHi = G.camY + 60;
+  const nearRocks = G.rocks.filter(r => r.alive && r.y > yLo && r.y < yHi);
+  const nearLogs = G.logs.filter(l => l.alive && l.y > yLo && l.y < yHi);
+  const nearWhirls = G.whirls.filter(w => w.y + w.r > yLo && w.y - w.r < yHi);
+  for (const l of G.logs) l.x = Math.sin(G.time * l.sp + l.ph) * l.amp;
+
+  const ripProb = Math.min(1, 250 / Math.max(1, G.ents.length));
+  const ents = G.ents;
+  for (let i = 0; i < ents.length; i++) {
+    const e = ents[i];
+    if (e.dead) continue;
+    if (forming) {
+      const k = Math.min(1, dt * 7);
+      e.rx += (e.tx - e.rx) * k;
+      e.ry += (e.ty - e.ry) * k;
+    }
+    const x = G.groupX + e.rx, y = G.camY + e.ry;
+
+    if (ending) { e.sink = (e.sink || 0) + dt; continue; }
+
+    // 跳ねる
+    e.phase += dt * G.skipRate * Math.PI;
+    const k = Math.floor(e.phase / Math.PI);
+    if (k > e.k) {
+      e.k = k;
+      const pts = e.n * e.v * G.skipBase * (high ? 3 : 1);
+      G.skipScore += pts;
+      if (e.gold) G.bd.skipGold += pts; else G.bd.skipNormal += pts;
+      if (high) G.bd.skipHigh += pts;
+      G.stoneSkips += e.n;
+      if (Math.random() < ripProb) ripple(x, y, e.gold || high);
+    }
+    e.z = amp * Math.abs(Math.sin(e.phase));
+
+    // 川の外
+    if (Math.abs(x) > RIVER_W / 2) {
+      e.dead = true; G.stats.lostBank += e.n;
+      noteChange(-e.n, x, y);
+      burst(x, y, "#b8bcc8", 3);
+      continue;
+    }
+
+    // ゲート通過（ゲートの y を越えた瞬間に、x がゲートの幅に入っていれば効果）
+    while (e.lastGate + 1 < G.gates.length && G.gates[e.lastGate + 1].y <= y) {
+      e.lastGate++;
+      const g = G.gates[e.lastGate];
+      if (x >= g.x0 && x <= g.x1) applyGate(g, e);
+      if (e.dead) break;
+    }
+    if (e.dead) continue;
+
+    const airborne = high && e.z > amp * 0.3;   // ハイジャンプ中は岩を飛び越せる
+
+    // 岩
+    for (const r of nearRocks) {
+      if (!r.alive) continue;
+      const dx = x - r.x, dy = y - r.y;
+      if (dx * dx + dy * dy < (r.r + 5) * (r.r + 5)) {
+        if (breaker) {
+          r.alive = false;
+          G.stats.rocksBroken++;
+          const pts = (200 * t * t + G.total * G.skipBase * 6) * G.bonusMult;
+          G.bonus += pts; G.bd.rockBreak += pts;
+          floatText(r.x, r.y, "破壊！+" + fmt(pts), "#ffb0a0", 15);
+          burst(r.x, r.y, "#8b8f99", 18);
+        } else if (!airborne) {
+          e.dead = true;
+          G.stats.rockHits += e.n;
+          noteChange(-e.n, x, y);
+          burst(x, y, "#ddd", 5);
+          if (G.rockHitBonus > 0) {
+            const pts = G.rockHitBonus * e.n * G.bonusMult;
+            G.bonus += pts; G.bd.rockHit += pts;
+            if (Math.random() < ripProb) floatText(x, y, "+" + fmt(pts), "#ffb15c", 13);
+          }
+        }
+        break;
+      }
+    }
+    if (e.dead) continue;
+
+    // 流木
+    for (const l of nearLogs) {
+      if (Math.abs(x - l.x) < l.w / 2 + 4 && Math.abs(y - l.y) < 14) {
+        if (breaker) {
+          l.alive = false;
+          G.stats.rocksBroken++;
+          const pts = (500 * t * t + G.total * G.skipBase * 15) * G.bonusMult;
+          G.bonus += pts; G.bd.logBreak += pts;
+          floatText(l.x, l.y, "流木破壊！+" + fmt(pts), "#ffb0a0", 16);
+          burst(l.x, l.y, "#8a5a2b", 25);
+        } else if (!airborne) {
+          e.dead = true; G.stats.rockHits += e.n;
+          noteChange(-e.n, x, y);
+          if (G.rockHitBonus > 0) { const pts = G.rockHitBonus * e.n * G.bonusMult; G.bonus += pts; G.bd.rockHit += pts; }
+          burst(x, y, "#ddd", 5);
+        }
+        break;
+      }
+    }
+    if (e.dead) continue;
+
+    // 渦潮
+    for (const w of nearWhirls) {
+      const dx = w.x - x, dy = w.y - y, d = Math.hypot(dx, dy);
+      if (d < w.r && !airborne) {
+        if (d < w.core) { e.dead = true; G.stats.lostWhirl += e.n; noteChange(-e.n, x, y); ripple(x, y, false); break; }
+        e.rx += (dx / d) * 150 * dt * (1.3 - d / w.r);
+        e.tx = e.rx;
+      }
+    }
+  }
+
+  // 消えた石を取り除く
+  if (ents.some(e => e.dead)) G.ents = ents.filter(e => !e.dead);
+  let total = 0;
+  for (const e of G.ents) total += e.n;
+  G.total = total;
+  G.stats.maxStones = Math.max(G.stats.maxStones, total);
+  if (!ending) flushChanges(dt);
+  if (!ending && total <= 0) startEnding("全ての石が除外された…");
+
+  // エフェクト
+  for (const r of G.ripples) r.age += dt;
+  G.ripples = G.ripples.filter(r => r.age < 0.8);
+  for (const tx of G.texts) { tx.age += dt; tx.y += 40 * dt; }
+  G.texts = G.texts.filter(tx => tx.age < 1.4);
+  for (const d of G.debris) { d.age += dt; d.x += d.vx * dt; d.y += d.vy * dt; d.vx *= .94; d.vy *= .94; }
+  G.debris = G.debris.filter(d => d.age < d.life);
+
+  // 先の生成と後ろの片付け
+  generateAhead();
+  const behind = G.camY + minRy - 400;
+  if (G.rocks.length > 300) G.rocks = G.rocks.filter(r => r.y > behind);
+  if (G.logs.length > 50) G.logs = G.logs.filter(l => l.y > behind);
+  if (G.whirls.length > 50) G.whirls = G.whirls.filter(w => w.y > behind);
+
+  if (ending) {
+    G.ending -= dt;
+    if (G.ending <= 0) finishGame();
+  }
+}
+
+function totalScore() { return G.skipScore * G.mult + G.bonus; }
+
+function startEnding(reason) {
+  if (mode !== "play") return;
+  mode = "ending";
+  G.ending = 1.4;
+  G.endReason = reason;
+  for (const e of G.ents) ripple(G.groupX + e.rx, G.camY + e.ry, false);
+}
+
+function finishGame() {
+  mode = "result";
+  const rec = {
+    id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+    name: G.name, score: totalScore(), skipScore: G.skipScore, mult: G.mult, bonus: G.bonus,
+    distance: Math.floor(G.camY / 10), maxStones: G.stats.maxStones, rocksBroken: G.stats.rocksBroken,
+    skips: G.skips, date: Date.now(), bd: { ...G.bd }, gateLog: { ...G.gateLog },
+  };
+  saveRecord(rec);
+  lastRecordId = rec.id;
+  // 周回の記録を更新して、新しく解放されたデザインを調べる
+  const before = new Set(Object.values(COS).flat().filter(i => isUnlocked(i)));
+  PROF.total += rec.score; PROF.best = Math.max(PROF.best, rec.score);
+  PROF.bestDist = Math.max(PROF.bestDist, rec.distance); PROF.plays++;
+  PROF.maxStones = Math.max(PROF.maxStones || 0, G.stats.maxStones);
+  PROF.rocks = (PROF.rocks || 0) + G.stats.rocksBroken;
+  PROF.rockPts = (PROF.rockPts || 0) + G.bd.rockBreak + G.bd.logBreak;
+  PROF.gold = (PROF.gold || 0) + (G.stats.goldGot || 0);
+  PROF.high = (PROF.high || 0) + G.bd.skipHigh * G.mult;
+  saveProfile();
+  const catName = { stone: "石", theme: "背景", rock: "岩" };
+  const newly = [];
+  for (const [cat, list] of Object.entries(COS))
+    for (const i of list) if (isUnlocked(i) && !before.has(i)) newly.push(`${catName[cat]}「${i.name}」`);
+  el("resultUnlock").innerHTML = newly.length
+    ? `<div class="unlockBox">🎉 <b>新しいデザインを解放！</b> ${newly.join("、")}<br><span style="font-size:12px;color:#c8d4e8">タイトルの「🎨 着せ替え」で使えます</span></div>` : "";
+  const list = loadRecords().sort((a, b) => b.score - a.score);
+  const rank = list.findIndex(r => r.id === rec.id) + 1;
+
+  document.getElementById("resultTitle").textContent = rank === 1 ? "🏆 新記録！" : "終了！";
+  document.getElementById("resultReason").textContent = `「${G.name}」 — ${G.endReason}（${rank}位 / ${list.length}件）`;
+  document.getElementById("resultScore").textContent = fmt(rec.score) + " 点";
+  document.getElementById("resultFormula").textContent =
+    `跳ね点 ${fmt(G.skipScore)} × 特殊倍率 ${fmt(G.mult)} ＋ 特殊点 ${fmt(G.bonus)}`;
+  const st = [
+    ["距離", fmt(rec.distance) + " m"], ["最大の石の数", fmt(G.stats.maxStones)],
+    ["跳ねた回数", fmt(G.skips)], ["跳ねた石の延べ数", fmt(G.stoneSkips)],
+    ["くぐったゲート", G.stats.gates], ["壊した障害物", G.stats.rocksBroken],
+    ["岩・流木に衝突", fmt(G.stats.rockHits)], ["川の外へ", fmt(G.stats.lostBank)],
+    ["渦潮に飲まれた", fmt(G.stats.lostWhirl)], ["最終の基礎点", fmt(G.skipBase)],
+  ];
+  document.getElementById("resultStats").innerHTML = st.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join("");
+  document.getElementById("resultDetail").innerHTML = detailHTML();
+  el("detailPanel").classList.add("hidden");
+  tabState.resultRecords = "rank";
+  document.querySelectorAll("#resultScreen .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === "rank"));
+  refreshRecordViews();
+  showHud(false);
+  el("resultDetailBox").open = false;
+  document.getElementById("resultScreen").classList.remove("hidden");
+  document.querySelector("#resultScreen .card").scrollTop = 0;
+}
+
+// =====================================================================
+//  描画
+// =====================================================================
+
+// =====================================================================
+//  着せ替え（見た目だけ。当たり判定や得点には一切影響しない）
+// =====================================================================
+const STONE_SKINS = [
+  { id: "plain",    name: "石ころ",     cond: null,                         body: "#c3c7d1", hi: "#eef0f4", shape: "oval" },
+  { id: "sapphire", name: "青い石",     cond: { type: "plays", v: 3 },      body: "#4f8ff0", hi: "#b9d6ff", shape: "oval" },
+  { id: "sakura",   name: "桜の石",     cond: { type: "total", v: 1e6 },    body: "#ff9ec0", hi: "#ffe1ec", shape: "oval" },
+  { id: "jade",     name: "翡翠",       cond: { type: "dist",  v: 400 },    body: "#3fbf8a", hi: "#b8f5d8", shape: "oval" },
+  { id: "obsidian", name: "黒曜石",     cond: { type: "total", v: 1e7 },    body: "#24202e", hi: "#8a6fd1", shape: "diamond" },
+  { id: "heart",    name: "ハートの石", cond: { type: "best",  v: 1e7 },    body: "#ff4d6d", hi: "#ffc2cd", shape: "heart" },
+  { id: "flame",    name: "炎の石",     cond: { type: "total", v: 1e8 },    body: "#ff7a1f", hi: "#ffe08a", shape: "oval", glow: "rgba(255,120,30,.4)" },
+  { id: "star",     name: "星のかけら", cond: { type: "dist",  v: 800 },    body: "#bfe9ff", hi: "#ffffff", shape: "star" },
+  { id: "diamond",  name: "ダイヤ",     cond: { type: "total", v: 1e10 },   body: "#a8f0ff", hi: "#ffffff", shape: "diamond", glow: "rgba(170,240,255,.35)" },
+  { id: "rainbow",  name: "虹の石",     cond: { type: "total", v: 1e12 },   shape: "oval", rainbow: true },
+  { id: "mochi",    name: "おもち",     cond: { type: "rocks", v: 30 },     body: "#fbf7ef", hi: "#ffffff", shape: "oval" },
+  { id: "moon",     name: "月の石",     cond: { type: "maxStones", v: 1000 }, body: "#d8d4c4", hi: "#ffffff", shape: "oval", pattern: "craters" },
+  { id: "melon",    name: "スイカ",     cond: { type: "gold", v: 50 },      body: "#3fae4a", hi: "#a8e68f", shape: "oval", pattern: "stripes" },
+  { id: "eyeball",  name: "目玉",       cond: { type: "high", v: 1e9 },     body: "#ffffff", hi: "#ffffff", shape: "oval", pattern: "eye" },
+  { id: "ruby",     name: "ルビー",     cond: { type: "rockPts", v: 1e9 },  body: "#e0204a", hi: "#ff9ab0", shape: "diamond", glow: "rgba(255,40,80,.35)" },
+  { id: "planet",   name: "惑星",       cond: { type: "gold", v: 500 },     body: "#7a8cff", hi: "#c8d0ff", shape: "oval", pattern: "ring" },
+  { id: "neon",     name: "ネオン",     cond: { type: "maxStones", v: 1e6 }, body: "#101820", hi: "#55ffff", shape: "oval", outline: "#33ffff", glow: "rgba(60,255,255,.3)" },
+  { id: "comet",    name: "流れ星",     cond: { type: "total", v: 1e16 },   body: "#e8f4ff", hi: "#ffffff", shape: "star", pattern: "comet" },
+  { id: "hole",     name: "ブラックホール", cond: { type: "total", v: 1e20 }, body: "#000000", hi: "#3a2060", shape: "oval", outline: "#b07bff", glow: "rgba(150,90,255,.45)" },
+  // ここから到達点の報酬。「一億個」と「1𥝱点」の2つを一番豪華にしている
+  { id: "stardust", name: "星屑の石",   cond: { type: "maxStones", v: 1e12 }, body: "#18204a", hi: "#9fb4ff", shape: "oval", pattern: "dust", outline: "#5a6fd8" },
+  { id: "platinum", name: "白金の石",   cond: { type: "best", v: 1e28 },      body: "#dfe3ea", hi: "#ffffff", shape: "diamond", outline: "#9aa3b5", glow: "rgba(230,235,245,.3)" },
+  { id: "oku",      name: "一億の輝石", cond: { type: "maxStones", v: 1e8 },  shape: "gem", fx: "prism", legend: true },
+  { id: "jo",       name: "日輪の石",   cond: { type: "best", v: 1e24 },      shape: "oval", fx: "sun", legend: true },
+];
+const THEMES = [
+  { id: "spring", name: "春の小川", cond: null, grass: "#3f8a4a", deco: "bush", decoC: ["#2f6b3a", "#4fa35a"], flowers: ["#ffd23f", "#ff7aa8", "#fff"],
+    sand: "#d9c38c", river: ["#1f7fb8", "#2b9be0"], wave: "rgba(255,255,255,.18)", ripple: "255,255,255" },
+  { id: "sunset", name: "夕焼けの川", cond: { type: "plays", v: 5 }, grass: "#6b4a5e", deco: "bush", decoC: ["#4a2f45", "#8a5a6e"], flowers: ["#ffb347", "#ff7a5c"],
+    sand: "#e0a874", river: ["#b04a72", "#f08a5d"], wave: "rgba(255,230,200,.22)", ripple: "255,240,220" },
+  { id: "autumn", name: "紅葉の渓流", cond: { type: "total", v: 5e6 }, grass: "#7a6a3a", deco: "bush", decoC: ["#b0391e", "#e8742c"], flowers: ["#ffd23f"],
+    sand: "#cdb07a", river: ["#2a6f8f", "#3d8fb0"], wave: "rgba(255,255,255,.18)", ripple: "255,255,255", weather: "leaf" },
+  { id: "sakura", name: "桜並木", cond: { type: "dist", v: 500 }, grass: "#5f9a58", deco: "bush", decoC: ["#e88aa8", "#ffc4d6"], flowers: ["#fff", "#ffd6e5"],
+    sand: "#e6d3b0", river: ["#3a8fc4", "#5fb4e6"], wave: "rgba(255,255,255,.2)", ripple: "255,255,255", weather: "petal" },
+  { id: "snow", name: "雪の谷", cond: { type: "total", v: 5e7 }, grass: "#e8eef5", deco: "pine", decoC: ["#2a5a48", "#3f7a62"], flowers: [],
+    sand: "#c9d6e3", river: ["#3b7fa8", "#7ec3e6"], wave: "rgba(255,255,255,.35)", ripple: "255,255,255", weather: "snow" },
+  { id: "night", name: "蛍の夜", cond: { type: "best", v: 1e8 }, grass: "#14261c", deco: "bush", decoC: ["#0d1a13", "#1f3a2a"], flowers: ["#ffe680"],
+    sand: "#3a3a4a", river: ["#0b2440", "#173d66"], wave: "rgba(180,210,255,.15)", ripple: "200,220,255", weather: "firefly" },
+  { id: "desert", name: "砂漠のオアシス", cond: { type: "total", v: 5e8 }, grass: "#e3c27a", deco: "cactus", decoC: ["#3f8a4a", "#5aa860"], flowers: ["#ff6b6b"],
+    sand: "#f0dca0", river: ["#1aa3a3", "#38d0c8"], wave: "rgba(255,255,255,.22)", ripple: "255,255,255" },
+  { id: "magma", name: "マグマの川", cond: { type: "dist", v: 1000 }, grass: "#2a1a16", deco: "crater", decoC: ["#3a2620", "#ff5a1f"], flowers: [],
+    sand: "#4a2c22", river: ["#a8280c", "#ff7a1f"], wave: "rgba(255,230,120,.35)", ripple: "255,220,120", weather: "ember" },
+  { id: "galaxy", name: "天の川", cond: { type: "total", v: 1e11 }, grass: "#0b0b24", deco: "star", decoC: ["#ffffff", "#9fb7ff"], flowers: [],
+    sand: "#2a2350", river: ["#2a1b5c", "#4b2f8f"], wave: "rgba(200,180,255,.25)", ripple: "220,200,255", riverStars: true },
+  { id: "rain", name: "梅雨の川", cond: { type: "plays", v: 15 }, grass: "#3d6b55", deco: "bush", decoC: ["#2c5244", "#4a7d63"], flowers: ["#8a7dff", "#5aa0ff"],
+    sand: "#9aa39a", river: ["#2e5f7a", "#4a7f99"], wave: "rgba(255,255,255,.2)", ripple: "255,255,255", weather: "rain" },
+  { id: "bamboo", name: "竹林", cond: { type: "rocks", v: 100 }, grass: "#5a7a3a", deco: "bamboo", decoC: ["#4f8f3a", "#8fc76a"], flowers: [],
+    sand: "#c9b88a", river: ["#2a7a8f", "#45a0b0"], wave: "rgba(255,255,255,.2)", ripple: "255,255,255" },
+  { id: "tropical", name: "南国の入り江", cond: { type: "gold", v: 200 }, grass: "#f2dfa5", deco: "palm", decoC: ["#7a5230", "#2fae5a"], flowers: ["#ff5a8a", "#ffb000"],
+    sand: "#fff0c8", river: ["#14b8c8", "#5fe6e0"], wave: "rgba(255,255,255,.3)", ripple: "255,255,255" },
+  { id: "yozakura", name: "夜桜", cond: { type: "high", v: 1e11 }, grass: "#1e2030", deco: "bush", decoC: ["#c46a90", "#f0a8c8"], flowers: ["#ffe0ee"],
+    sand: "#3e3a4e", river: ["#141c3a", "#26346a"], wave: "rgba(255,200,230,.18)", ripple: "255,220,240", weather: "petal" },
+  { id: "choco", name: "チョコの川", cond: { type: "maxStones", v: 1e7 }, grass: "#ffd9e6", deco: "candy", decoC: ["#ff5a8a", "#5ac8ff"], flowers: ["#fff", "#ffe14a", "#9b6bff"],
+    sand: "#e8b48a", river: ["#5a3420", "#8a5a3a"], wave: "rgba(255,220,180,.25)", ripple: "255,220,190" },
+  { id: "glacier", name: "氷河", cond: { type: "rockPts", v: 1e12 }, grass: "#d6ecff", deco: "pine", decoC: ["#5b8db8", "#8ec0e6"], flowers: [],
+    sand: "#b8d4ea", river: ["#5fb8e6", "#c2ecff"], wave: "rgba(255,255,255,.45)", ripple: "255,255,255", weather: "snow" },
+  { id: "gold", name: "黄金郷", cond: { type: "total", v: 1e20 }, grass: "#5a4410", deco: "star", decoC: ["#ffe27a", "#fff2b0"], flowers: [],
+    sand: "#c9a227", river: ["#8a6a10", "#d4a82a"], wave: "rgba(255,245,200,.35)", ripple: "255,240,180", riverStars: true },
+  // 到達点の報酬
+  { id: "deepsea", name: "深海", cond: { type: "maxStones", v: 1e12 }, grass: "#061a2a", deco: "kelp", decoC: ["#0f4a4a", "#1f7a6a"], flowers: ["#4ff0ff", "#9b7bff"],
+    sand: "#0b2c3e", river: ["#04223a", "#0a4a6a"], wave: "rgba(120,240,255,.18)", ripple: "140,240,255", weather: "bubble" },
+  { id: "silver", name: "白銀の世界", cond: { type: "best", v: 1e28 }, grass: "#c9ced8", deco: "pine", decoC: ["#8a93a6", "#b6bdcc"], flowers: [],
+    sand: "#e4e7ee", river: ["#9aa6bd", "#e8edf6"], wave: "rgba(255,255,255,.55)", ripple: "255,255,255", weather: "snow" },
+  { id: "aurora", name: "一億の光の川", cond: { type: "maxStones", v: 1e8 }, grass: "#070b1f", deco: "crystal", decoC: ["#7af0ff", "#d08bff"], flowers: ["#7af0ff", "#ff8bd8", "#ffe36b"],
+    sand: "#141a3a", river: ["#0a0f2e", "#1a2160"], wave: "rgba(200,230,255,.22)", ripple: "220,240,255", riverFx: "aurora", riverStars: true, weather: "sparkle", legend: true },
+  { id: "heaven", name: "天上の川", cond: { type: "best", v: 1e24 }, grass: "#fff3d6", deco: "cloud", decoC: ["#ffffff", "#ffe7a8"], flowers: ["#ffd23f", "#ffffff"],
+    sand: "#ffe2a0", river: ["#c8690e", "#ffc94a"], wave: "rgba(255,255,255,.45)", ripple: "255,250,220", riverFx: "radiance", weather: "glow", legend: true },
+];
+const ROCK_SKINS = [
+  { id: "stone",   name: "ふつうの岩", cond: null },
+  { id: "moss",    name: "苔むした岩", cond: { type: "plays", v: 2 } },
+  { id: "frog",    name: "カエル岩",   cond: { type: "dist",  v: 300 } },
+  { id: "ice",     name: "氷のかたまり", cond: { type: "total", v: 3e6 } },
+  { id: "crystal", name: "水晶",       cond: { type: "total", v: 3e7 } },
+  { id: "onigiri", name: "おにぎり",   cond: { type: "best",  v: 3e7 } },
+  { id: "block",   name: "ブロック",   cond: { type: "dist",  v: 1200 } },
+  { id: "lava",    name: "溶岩",       cond: { type: "total", v: 3e9 } },
+  { id: "slime",   name: "スライム",   cond: { type: "rocks", v: 20 } },
+  { id: "cat",     name: "ネコ岩",     cond: { type: "plays", v: 10 } },
+  { id: "snowman", name: "雪だるま",   cond: { type: "gold", v: 100 } },
+  { id: "donut",   name: "ドーナツ",   cond: { type: "rockPts", v: 1e8 } },
+  { id: "chest",   name: "宝箱",       cond: { type: "maxStones", v: 1e5 } },
+  { id: "meteor",  name: "隕石",       cond: { type: "rocks", v: 500 } },
+  { id: "ufo",     name: "UFO",        cond: { type: "high", v: 1e13 } },
+  { id: "kingrock",name: "王様の岩",   cond: { type: "best", v: 1e16 } },
+  // 到達点の報酬
+  { id: "planet2", name: "小さな惑星", cond: { type: "maxStones", v: 1e12 } },
+  { id: "platrock",name: "白金の岩",   cond: { type: "best", v: 1e28 } },
+  { id: "prism",   name: "一億の結晶", cond: { type: "maxStones", v: 1e8 }, legend: true },
+  { id: "sunrock", name: "日輪",       cond: { type: "best", v: 1e24 }, legend: true },
+];
+const COS = { stone: STONE_SKINS, theme: THEMES, rock: ROCK_SKINS };
+
+// 周回の記録（累計得点など）と選んでいるデザイン
+const PROF_KEY = "ishikiri-gates-profile";
+function loadProfile() {
+  let p = null;
+  try { p = JSON.parse(localStorage.getItem(PROF_KEY)); } catch {}
+  if (!p) {
+    // これまでの記録から作る
+    const recs = loadRecords();
+    p = { total: recs.reduce((a, r) => a + (r.score || 0), 0), best: Math.max(0, ...recs.map(r => r.score || 0)),
+          bestDist: Math.max(0, ...recs.map(r => r.distance || 0)), plays: recs.length };
+  }
+  p.sel = Object.assign({ stone: "plain", theme: "spring", rock: "stone" }, p.sel || {});
+  // 新しく増えた項目は、残っている記録からできるだけ復元する
+  if (p.maxStones === undefined) {
+    const recs = loadRecords();
+    p.maxStones = Math.max(0, ...recs.map(r => r.maxStones || 0));
+    p.rocks = recs.reduce((a, r) => a + (r.rocksBroken || 0), 0);
+    p.rockPts = recs.reduce((a, r) => a + ((r.bd && r.bd.rockBreak) || 0), 0);
+    p.high = recs.reduce((a, r) => a + ((r.bd && r.bd.skipHigh * (r.mult || 1)) || 0), 0);
+    p.gold = 0;
+  }
+  return p;
+}
+function saveProfile() { try { localStorage.setItem(PROF_KEY, JSON.stringify(PROF)); } catch {} }
+let PROF = loadProfile();
+
+const COND_LABEL = { total: "累計得点", best: "最高得点", dist: "最高距離", plays: "プレイ回数",
+  maxStones: "最大の石の数", rocks: "累計で壊した障害物", rockPts: "障害物破壊の累計得点", gold: "累計で獲得した金の石", high: "ハイジャンプ中の累計得点" };
+function condValue(type, p = PROF) {
+  return { total: p.total, best: p.best, dist: p.bestDist, plays: p.plays, maxStones: p.maxStones,
+           rocks: p.rocks, rockPts: p.rockPts, gold: p.gold, high: p.high }[type] || 0;
+}
+function isUnlocked(item, p = PROF) { return !item.cond || condValue(item.cond.type, p) >= item.cond.v; }
+function condText(c) {
+  const unit = { dist: " m", plays: " 回", maxStones: " 個", rocks: " 個", gold: " 個" }[c.type] || " 点";
+  const v = fmt(c.v) + unit;
+  return `${COND_LABEL[c.type]} ${v}`;
+}
+const curSkin = cat => COS[cat].find(i => i.id === PROF.sel[cat]) || COS[cat][0];
+let SK = curSkin("stone"), TH = curSkin("theme"), RK = curSkin("rock");
+function applySkins() { SK = curSkin("stone"); TH = curSkin("theme"); RK = curSkin("rock"); weather.length = 0; }
+
+// ---- 石の描画 ----
+function stonePath(c, shape, x, y, w, h) {
+  c.beginPath();
+  if (shape === "heart") {
+    const s = Math.max(w, h) * 0.95;
+    c.moveTo(x, y + s * 0.9);
+    c.bezierCurveTo(x - s * 1.5, y - s * 0.1, x - s * 0.6, y - s * 1.2, x, y - s * 0.35);
+    c.bezierCurveTo(x + s * 0.6, y - s * 1.2, x + s * 1.5, y - s * 0.1, x, y + s * 0.9);
+  } else if (shape === "star") {
+    const s = Math.max(w, h) * 1.15;
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? s * 0.45 : s;
+      i ? c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) : c.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+  } else if (shape === "diamond") {
+    c.moveTo(x, y - h * 1.3); c.lineTo(x + w, y); c.lineTo(x, y + h * 1.3); c.lineTo(x - w, y);
+  } else if (shape === "gem") {   // 宝石のカット（八角形）
+    for (let i = 0; i < 8; i++) {
+      const a = Math.PI / 8 + i * Math.PI / 4, r = i % 2 ? 1 : 1.12;
+      const qx = x + Math.cos(a) * w * r, qy = y + Math.sin(a) * h * 1.2 * r;
+      i ? c.lineTo(qx, qy) : c.moveTo(qx, qy);
+    }
+  } else {
+    c.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
+  }
+  c.closePath();
+}
+// 到達点の報酬（一億の輝石・日輪の石）は専用の描き方
+function drawLegendStone(c, x, y, base, skin, gold, seed, t) {
+  if (skin.fx === "prism") {
+    const hue = (seed * 360 + t * 120) % 360;
+    // 虹色にゆらめく光の輪
+    c.fillStyle = `hsla(${hue},100%,65%,.28)`;
+    c.beginPath(); c.arc(x, y, base * (2.1 + 0.25 * Math.sin(t * 5 + seed * 9)), 0, 7); c.fill();
+    c.fillStyle = gold ? "#ffcf33" : `hsl(${hue},90%,62%)`;
+    stonePath(c, "gem", x, y, base * 1.15, base * 0.85); c.fill();
+    c.strokeStyle = gold ? "#fffbe0" : `hsl(${(hue + 180) % 360},100%,85%)`; c.lineWidth = Math.max(1, base * 0.22); c.stroke();
+    // カット面
+    c.fillStyle = "rgba(255,255,255,.55)";
+    c.beginPath(); c.moveTo(x - base * .55, y - base * .2); c.lineTo(x, y - base * .85); c.lineTo(x + base * .2, y - base * .2); c.closePath(); c.fill();
+    c.fillStyle = "rgba(255,255,255,.95)";
+    c.beginPath(); c.arc(x - base * .1, y - base * .4, base * .18, 0, 7); c.fill();
+    // ときどき光る十字のきらめき
+    const tw = Math.sin(t * 4 + seed * 40);
+    if (tw > 0.6) {
+      const L = base * 2.2 * (tw - 0.6) / 0.4;
+      c.strokeStyle = "rgba(255,255,255,.95)"; c.lineWidth = Math.max(1, base * 0.14);
+      c.beginPath(); c.moveTo(x + base * .5 - L, y - base * .6); c.lineTo(x + base * .5 + L, y - base * .6);
+      c.moveTo(x + base * .5, y - base * .6 - L); c.lineTo(x + base * .5, y - base * .6 + L); c.stroke();
+    }
+    return;
+  }
+  // 日輪の石：回る光の筋をまとった太陽
+  const rot = t * 1.2 + seed * 6;
+  c.fillStyle = "rgba(255,200,60,.22)";
+  c.beginPath(); c.arc(x, y, base * 2.4, 0, 7); c.fill();
+  c.fillStyle = "rgba(255,236,150,.85)";
+  c.beginPath();
+  for (let i = 0; i < 12; i++) {
+    const a = rot + i * Math.PI / 6, r1 = base * 1.1, r2 = base * (i % 2 ? 1.6 : 2.05);
+    c.moveTo(x + Math.cos(a - 0.12) * r1, y + Math.sin(a - 0.12) * r1);
+    c.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2);
+    c.lineTo(x + Math.cos(a + 0.12) * r1, y + Math.sin(a + 0.12) * r1);
+  }
+  c.fill();
+  c.fillStyle = gold ? "#ffcf33" : "#ff9a12";
+  c.beginPath(); c.arc(x, y, base * 1.05, 0, 7); c.fill();
+  c.strokeStyle = "rgba(150,60,0,.75)"; c.lineWidth = Math.max(1, base * 0.12);
+  c.beginPath(); c.arc(x, y, base * 1.15, 0, 7); c.stroke();
+  c.fillStyle = "#fff4c2";
+  c.beginPath(); c.arc(x, y, base * 0.72, 0, 7); c.fill();
+  c.strokeStyle = gold ? "#fffbe0" : "#ffffff"; c.lineWidth = Math.max(1, base * 0.18);
+  c.beginPath(); c.arc(x, y, base * 1.05, 0, 7); c.stroke();
+}
+function drawStone(c, x, y, base, skin, gold, seed, t) {
+  if (skin.fx) { drawLegendStone(c, x, y, base, skin, gold, seed, t); return; }
+  if (skin.glow) {
+    c.fillStyle = skin.glow;
+    c.beginPath(); c.arc(x, y, base * 1.9, 0, 7); c.fill();
+  }
+  let body = skin.body, hi = skin.hi;
+  if (skin.rainbow) {
+    const hue = (seed * 360 + t * 90) % 360;
+    body = `hsl(${hue},85%,62%)`; hi = `hsl(${hue},90%,86%)`;
+  }
+  if (gold) { body = "#ffcf33"; hi = "#fff3b0"; }   // 金の石は見分けやすさ優先で常に金色
+  c.fillStyle = body;
+  stonePath(c, skin.shape, x, y, base * 1.15, base * 0.85);
+  c.fill();
+  if (skin.outline && !gold) { c.strokeStyle = skin.outline; c.lineWidth = Math.max(1, base * 0.22); c.stroke(); }
+  if (gold) { c.strokeStyle = "#fffbe0"; c.lineWidth = Math.max(1, base * 0.25); c.stroke(); }
+  const pat = skin.pattern;
+  if (pat === "stripes" && !gold) {
+    c.fillStyle = "#1f6b2a";
+    for (const k of [-0.5, 0, 0.5]) { c.beginPath(); c.ellipse(x + k * base, y, base * 0.13, base * 0.75, 0, 0, 7); c.fill(); }
+  } else if (pat === "craters" && !gold) {
+    c.fillStyle = "rgba(120,115,100,.55)";
+    c.beginPath(); c.arc(x + base * .35, y + base * .2, base * .25, 0, 7); c.arc(x - base * .2, y + base * .35, base * .15, 0, 7); c.fill();
+  } else if (pat === "eye" && !gold) {
+    c.fillStyle = "#2e7bd6"; c.beginPath(); c.arc(x + base * .1, y, base * .5, 0, 7); c.fill();
+    c.fillStyle = "#000"; c.beginPath(); c.arc(x + base * .1, y, base * .25, 0, 7); c.fill();
+  } else if (pat === "ring") {
+    c.strokeStyle = "#ffd9a0"; c.lineWidth = Math.max(1, base * 0.22);
+    c.beginPath(); c.ellipse(x, y, base * 1.9, base * 0.5, -0.35, 0, 7); c.stroke();
+  } else if (pat === "dust" && !gold) {   // 星屑：小さな光の粒
+    for (let i = 0; i < 5; i++) {
+      const a = hash(seed * 31 + i) * 6.28, d = base * 0.75 * hash(seed * 7 + i);
+      c.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 3 + i + seed * 20));
+      c.fillStyle = i % 2 ? "#ffffff" : "#ffe9a8";
+      c.beginPath(); c.arc(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, Math.max(0.6, base * 0.13), 0, 7); c.fill();
+    }
+    c.globalAlpha = 1;
+  } else if (pat === "comet") {
+    c.fillStyle = "rgba(200,230,255,.35)";
+    c.beginPath(); c.arc(x, y + base * 1.6, base * .6, 0, 7); c.arc(x, y + base * 2.6, base * .4, 0, 7); c.fill();
+  }
+  c.fillStyle = hi;
+  c.beginPath(); c.ellipse(x - base * .3, y - base * .25, base * .4, base * .27, 0, 0, 7); c.fill();
+}
+
+// ---- 岩の描画（当たり判定は常に同じ円） ----
+function drawRockSkin(c, px, py, rad, seed, style, t) {
+  const poly = (k, jit, scale = 1) => {
+    c.beginPath();
+    for (let a = 0; a < k; a++) {
+      const ang = (a / k) * Math.PI * 2, rr = rad * scale * (0.82 + hash(seed + a) * jit);
+      const qx = px + Math.cos(ang) * rr, qy = py + Math.sin(ang) * rr;
+      a ? c.lineTo(qx, qy) : c.moveTo(qx, qy);
+    }
+    c.closePath();
+  };
+  const hiEllipse = (col) => { c.fillStyle = col; c.beginPath(); c.ellipse(px - rad * .25, py - rad * .3, rad * .45, rad * .3, -0.5, 0, 7); c.fill(); };
+  switch (style) {
+    case "moss":
+      poly(9, .25); c.fillStyle = "#6f7468"; c.fill();
+      hiEllipse("#959c8c");
+      c.fillStyle = "#4f9a4a";
+      for (let i = 0; i < 4; i++) {
+        const a = hash(seed * 3 + i) * 6.28, d = rad * 0.45 * hash(seed + i * 7);
+        c.beginPath(); c.arc(px + Math.cos(a) * d, py + Math.sin(a) * d, rad * (0.18 + hash(seed + i) * 0.15), 0, 7); c.fill();
+      }
+      break;
+    case "ice":
+      poly(7, .3); c.fillStyle = "rgba(175,228,255,.95)"; c.fill();
+      c.strokeStyle = "#fff"; c.lineWidth = 2; c.stroke();
+      hiEllipse("rgba(255,255,255,.85)");
+      c.strokeStyle = "rgba(90,170,220,.6)"; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(px - rad * .2, py + rad * .1); c.lineTo(px + rad * .4, py - rad * .2); c.lineTo(px + rad * .2, py + rad * .45); c.stroke();
+      break;
+    case "frog": {
+      c.fillStyle = "#3f9e48"; c.beginPath(); c.ellipse(px, py + rad * .1, rad, rad * .85, 0, 0, 7); c.fill();
+      c.fillStyle = "#8fd18a"; c.beginPath(); c.ellipse(px, py + rad * .35, rad * .6, rad * .4, 0, 0, 7); c.fill();
+      for (const s of [-1, 1]) {
+        c.fillStyle = "#3f9e48"; c.beginPath(); c.arc(px + s * rad * .45, py - rad * .55, rad * .32, 0, 7); c.fill();
+        c.fillStyle = "#fff"; c.beginPath(); c.arc(px + s * rad * .45, py - rad * .58, rad * .22, 0, 7); c.fill();
+        c.fillStyle = "#111"; c.beginPath(); c.arc(px + s * rad * .45, py - rad * .56, rad * .11, 0, 7); c.fill();
+      }
+      c.strokeStyle = "#1d5a24"; c.lineWidth = 2;
+      c.beginPath(); c.arc(px, py, rad * .45, 0.25, Math.PI - 0.25); c.stroke();
+      break;
+    }
+    case "crystal": {
+      c.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + seed, r = rad * (i % 2 ? 0.62 : 1.08) * (0.9 + hash(seed + i) * 0.2);
+        i ? c.lineTo(px + Math.cos(a) * r, py + Math.sin(a) * r) : c.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r);
+      }
+      c.closePath();
+      const g = c.createLinearGradient(px - rad, py - rad, px + rad, py + rad);
+      g.addColorStop(0, "#e2d2ff"); g.addColorStop(0.5, "#a77bff"); g.addColorStop(1, "#6a3fd1");
+      c.fillStyle = g; c.fill();
+      c.strokeStyle = "rgba(255,255,255,.6)"; c.lineWidth = 1.5;
+      c.beginPath();
+      for (let i = 0; i < 12; i += 2) {
+        const a = (i / 12) * Math.PI * 2 + seed;
+        c.moveTo(px, py); c.lineTo(px + Math.cos(a) * rad * .9, py + Math.sin(a) * rad * .9);
+      }
+      c.stroke();
+      break;
+    }
+    case "onigiri": {
+      c.fillStyle = "#fbfbf6"; c.strokeStyle = "#fbfbf6"; c.lineJoin = "round"; c.lineWidth = rad * 0.35;
+      c.beginPath(); c.moveTo(px, py - rad * .8); c.lineTo(px + rad * .82, py + rad * .62); c.lineTo(px - rad * .82, py + rad * .62); c.closePath();
+      c.fill(); c.stroke();
+      c.fillStyle = "#1d2a1d"; c.fillRect(px - rad * .38, py + rad * .2, rad * .76, rad * .6);
+      c.fillStyle = "#d8d8cc";
+      for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(px + (hash(seed + i) - .5) * rad, py - rad * .1 + (hash(seed * 2 + i) - .5) * rad * .5, 1.5, 0, 7); c.fill(); }
+      c.lineJoin = "miter";
+      break;
+    }
+    case "block": {
+      const sz = rad * 1.7, cell = sz / 4;
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+        const v = 110 + Math.floor(hash(seed + i * 4 + j) * 50);
+        c.fillStyle = `rgb(${v},${v},${v + 8})`;
+        c.fillRect(px - sz / 2 + i * cell, py - sz / 2 + j * cell, cell + 0.5, cell + 0.5);
+      }
+      c.strokeStyle = "rgba(0,0,0,.35)"; c.lineWidth = 2; c.strokeRect(px - sz / 2, py - sz / 2, sz, sz);
+      break;
+    }
+    case "lava": {
+      const pulse = 0.6 + 0.4 * Math.sin(t * 3 + seed);
+      c.fillStyle = `rgba(255,90,20,${0.25 * pulse})`; c.beginPath(); c.arc(px, py, rad * 1.25, 0, 7); c.fill();
+      poly(9, .25); c.fillStyle = "#2b1d1a"; c.fill();
+      c.strokeStyle = `rgba(255,${120 + 80 * pulse | 0},30,.95)`; c.lineWidth = 2;
+      c.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const a = hash(seed + i * 5) * 6.28;
+        c.moveTo(px, py);
+        c.lineTo(px + Math.cos(a) * rad * .45, py + Math.sin(a) * rad * .45);
+        c.lineTo(px + Math.cos(a + .4) * rad * .75, py + Math.sin(a + .4) * rad * .75);
+      }
+      c.stroke();
+      break;
+    }
+    case "slime": {
+      const wob = Math.sin(t * 4 + seed) * 0.07;
+      c.fillStyle = "rgba(80,190,255,.92)";
+      c.beginPath(); c.ellipse(px, py + rad * .1, rad * (1 + wob), rad * .85 * (1 - wob), 0, 0, 7); c.fill();
+      hiEllipse("rgba(255,255,255,.7)");
+      c.fillStyle = "#123";
+      c.beginPath(); c.arc(px - rad * .3, py, rad * .12, 0, 7); c.arc(px + rad * .3, py, rad * .12, 0, 7); c.fill();
+      c.strokeStyle = "#123"; c.lineWidth = 2; c.beginPath(); c.arc(px, py + rad * .2, rad * .2, 0.3, Math.PI - 0.3); c.stroke();
+      break;
+    }
+    case "cat": {
+      c.fillStyle = "#f0a050";
+      for (const sgn of [-1, 1]) { c.beginPath(); c.moveTo(px + sgn * rad * .85, py - rad * .3); c.lineTo(px + sgn * rad * .7, py - rad * 1.05); c.lineTo(px + sgn * rad * .2, py - rad * .75); c.fill(); }
+      c.beginPath(); c.ellipse(px, py, rad, rad * .85, 0, 0, 7); c.fill();
+      c.fillStyle = "#fff3e0"; c.beginPath(); c.ellipse(px, py + rad * .35, rad * .5, rad * .35, 0, 0, 7); c.fill();
+      c.fillStyle = "#222"; c.beginPath(); c.ellipse(px - rad * .35, py - rad * .1, rad * .1, rad * .16, 0, 0, 7); c.ellipse(px + rad * .35, py - rad * .1, rad * .1, rad * .16, 0, 0, 7); c.fill();
+      c.fillStyle = "#ff7a9a"; c.beginPath(); c.arc(px, py + rad * .15, rad * .08, 0, 7); c.fill();
+      c.strokeStyle = "#5a3a20"; c.lineWidth = 1;
+      c.beginPath();
+      for (const sgn of [-1, 1]) for (const dy of [0.12, 0.28]) { c.moveTo(px + sgn * rad * .25, py + rad * .2); c.lineTo(px + sgn * rad * .95, py + rad * dy); }
+      c.stroke();
+      break;
+    }
+    case "snowman":
+      c.fillStyle = "#fbfdff";
+      c.beginPath(); c.arc(px, py + rad * .3, rad * .75, 0, 7); c.fill();
+      c.beginPath(); c.arc(px, py - rad * .45, rad * .5, 0, 7); c.fill();
+      c.fillStyle = "#d63a3a"; c.fillRect(px - rad * .5, py - rad * .12, rad, rad * .18);
+      c.fillStyle = "#222"; c.beginPath(); c.arc(px - rad * .18, py - rad * .55, rad * .07, 0, 7); c.arc(px + rad * .18, py - rad * .55, rad * .07, 0, 7); c.fill();
+      c.fillStyle = "#ff8a1f"; c.beginPath(); c.moveTo(px, py - rad * .45); c.lineTo(px + rad * .35, py - rad * .4); c.lineTo(px, py - rad * .35); c.fill();
+      break;
+    case "donut": {
+      c.fillStyle = "#d99a5b"; c.beginPath(); c.arc(px, py, rad, 0, 7); c.fill();
+      c.fillStyle = "#ff8fb8"; poly(14, .12, 0.92); c.fill();
+      const cols = ["#fff", "#5ac8ff", "#ffe14a", "#7dffa0"];
+      for (let i = 0; i < 9; i++) {
+        const a = hash(seed + i) * 6.28, d = rad * (0.45 + hash(seed * 2 + i) * 0.3);
+        c.fillStyle = cols[i % 4]; c.fillRect(px + Math.cos(a) * d - 2, py + Math.sin(a) * d - 1, 4, 2);
+      }
+      c.fillStyle = TH.river[1]; c.beginPath(); c.arc(px, py, rad * .3, 0, 7); c.fill();
+      break;
+    }
+    case "chest": {
+      const w = rad * 1.8, h = rad * 1.3;
+      c.fillStyle = "#8a5a2b"; c.fillRect(px - w / 2, py - h / 2, w, h);
+      c.fillStyle = "#6a4220"; c.fillRect(px - w / 2, py - h / 2, w, h * .35);
+      c.fillStyle = "#e8b830";
+      c.fillRect(px - w / 2, py - h / 2 + h * .33, w, h * .08);
+      c.fillRect(px - w * .07, py - h / 2, w * .14, h);
+      c.fillRect(px - w * .12, py - h * .05, w * .24, h * .25);
+      c.strokeStyle = "#3a2410"; c.lineWidth = 2; c.strokeRect(px - w / 2, py - h / 2, w, h);
+      break;
+    }
+    case "meteor": {
+      const g = c.createLinearGradient(px, py, px - rad * 2.2, py - rad * 2.2);
+      g.addColorStop(0, "rgba(255,140,40,.7)"); g.addColorStop(1, "rgba(255,140,40,0)");
+      c.fillStyle = g;
+      c.beginPath(); c.moveTo(px - rad * .7, py + rad * .5); c.lineTo(px - rad * 2.4, py - rad * 2.4); c.lineTo(px + rad * .5, py - rad * .7); c.fill();
+      poly(9, .3); c.fillStyle = "#4a3e3a"; c.fill();
+      c.fillStyle = "#2e2523";
+      c.beginPath(); c.arc(px + rad * .25, py + rad * .1, rad * .22, 0, 7); c.arc(px - rad * .3, py + rad * .35, rad * .14, 0, 7); c.fill();
+      hiEllipse("#7a6a64");
+      break;
+    }
+    case "ufo": {
+      c.fillStyle = "rgba(150,255,200,.25)"; c.beginPath(); c.arc(px, py, rad * 1.15, 0, 7); c.fill();
+      c.fillStyle = "#9fd8ff"; c.beginPath(); c.ellipse(px, py - rad * .25, rad * .45, rad * .4, 0, Math.PI, 0); c.fill();
+      c.fillStyle = "#9aa4b4"; c.beginPath(); c.ellipse(px, py, rad, rad * .4, 0, 0, 7); c.fill();
+      for (let i = 0; i < 5; i++) {
+        c.fillStyle = Math.sin(t * 6 + i) > 0 ? "#ffe14a" : "#ff5a8a";
+        c.beginPath(); c.arc(px - rad * .7 + i * rad * .35, py + rad * .05, rad * .08, 0, 7); c.fill();
+      }
+      break;
+    }
+    case "kingrock":
+      poly(9, .25); c.fillStyle = "#7d828c"; c.fill();
+      hiEllipse("#a3a8b2");
+      c.fillStyle = "#ffcf33";
+      c.beginPath();
+      c.moveTo(px - rad * .5, py - rad * .55); c.lineTo(px - rad * .5, py - rad * 1.05); c.lineTo(px - rad * .25, py - rad * .8);
+      c.lineTo(px, py - rad * 1.15); c.lineTo(px + rad * .25, py - rad * .8); c.lineTo(px + rad * .5, py - rad * 1.05); c.lineTo(px + rad * .5, py - rad * .55);
+      c.fill();
+      c.fillStyle = "#222"; c.beginPath(); c.arc(px - rad * .25, py - rad * .1, rad * .08, 0, 7); c.arc(px + rad * .25, py - rad * .1, rad * .08, 0, 7); c.fill();
+      c.strokeStyle = "#222"; c.lineWidth = 2; c.beginPath(); c.moveTo(px - rad * .3, py + rad * .2); c.lineTo(px + rad * .3, py + rad * .2); c.stroke();
+      break;
+    case "planet2": {
+      c.fillStyle = "#3b4fb8"; c.beginPath(); c.arc(px, py, rad * .85, 0, 7); c.fill();
+      c.fillStyle = "#5a78e0"; c.beginPath(); c.arc(px - rad * .2, py - rad * .15, rad * .55, 0, 7); c.fill();
+      c.fillStyle = "rgba(255,255,255,.5)"; c.fillRect(px - rad * .7, py + rad * .05, rad * 1.4, rad * .1);
+      c.strokeStyle = "#e6d3a0"; c.lineWidth = Math.max(1.5, rad * .12);
+      c.beginPath(); c.ellipse(px, py, rad * 1.35, rad * .35, -0.35, 0.15, Math.PI - 0.15); c.stroke();
+      break;
+    }
+    case "platrock": {
+      c.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.2, r = rad * (i % 2 ? 0.9 : 1.02);
+        i ? c.lineTo(px + Math.cos(a) * r, py + Math.sin(a) * r) : c.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r);
+      }
+      c.closePath();
+      const g = c.createLinearGradient(px - rad, py - rad, px + rad, py + rad);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.45, "#c9ceda"); g.addColorStop(1, "#8a93a6");
+      c.fillStyle = g; c.fill();
+      c.strokeStyle = "rgba(255,255,255,.8)"; c.lineWidth = 1.5; c.stroke();
+      hiEllipse("rgba(255,255,255,.7)");
+      break;
+    }
+    case "prism": {   // 一億の結晶：虹色に光る結晶の群れ
+      const hue = (seed * 50 + t * 60) % 360;
+      c.fillStyle = `hsla(${hue},100%,65%,.3)`; c.beginPath(); c.arc(px, py, rad * (1.35 + 0.08 * Math.sin(t * 4 + seed)), 0, 7); c.fill();
+      const spikes = [[-0.5, 0.95, -0.35], [0, 1.25, 0], [0.5, 1.0, 0.35], [-0.25, 0.7, -0.15], [0.3, 0.75, 0.2]];
+      spikes.forEach(([dx, len, tilt], i) => {
+        const bx = px + dx * rad, by = py + rad * .55, tipX = bx + Math.sin(tilt) * rad * len, tipY = by - Math.cos(tilt) * rad * len * 1.15;
+        c.fillStyle = `hsl(${(hue + i * 60) % 360},90%,${i % 2 ? 72 : 60}%)`;
+        c.beginPath(); c.moveTo(bx - rad * .2, by); c.lineTo(bx - rad * .2 + (tipX - bx) * .85, tipY + rad * .18);
+        c.lineTo(tipX, tipY); c.lineTo(bx + rad * .2 + (tipX - bx) * .85, tipY + rad * .18); c.lineTo(bx + rad * .2, by); c.closePath(); c.fill();
+        c.strokeStyle = "rgba(255,255,255,.75)"; c.lineWidth = 1.2; c.stroke();
+      });
+      const tw = Math.sin(t * 3 + seed * 7);
+      if (tw > 0.5) {
+        const L = rad * 0.7 * (tw - 0.5) / 0.5;
+        c.strokeStyle = "#fff"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(px - L, py - rad * .6); c.lineTo(px + L, py - rad * .6); c.moveTo(px, py - rad * .6 - L); c.lineTo(px, py - rad * .6 + L); c.stroke();
+      }
+      break;
+    }
+    case "sunrock": {   // 日輪：回る光の輪をまとった太陽
+      const rot = t * 0.8 + seed;
+      c.fillStyle = "rgba(255,200,60,.25)"; c.beginPath(); c.arc(px, py, rad * 1.6, 0, 7); c.fill();
+      c.fillStyle = "#ffe08a";
+      c.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const a = rot + i * Math.PI / 8, r2 = rad * (i % 2 ? 1.25 : 1.5);
+        c.moveTo(px + Math.cos(a - 0.1) * rad * .9, py + Math.sin(a - 0.1) * rad * .9);
+        c.lineTo(px + Math.cos(a) * r2, py + Math.sin(a) * r2);
+        c.lineTo(px + Math.cos(a + 0.1) * rad * .9, py + Math.sin(a + 0.1) * rad * .9);
+      }
+      c.fill();
+      const g = c.createRadialGradient(px - rad * .2, py - rad * .2, rad * .1, px, py, rad * .95);
+      g.addColorStop(0, "#fffbe6"); g.addColorStop(0.55, "#ffcc33"); g.addColorStop(1, "#f08a10");
+      c.fillStyle = g; c.beginPath(); c.arc(px, py, rad * .95, 0, 7); c.fill();
+      c.strokeStyle = "#fff6d0"; c.lineWidth = 2;
+      c.beginPath(); c.arc(px, py, rad * 1.08, rot, rot + Math.PI * 1.3); c.stroke();
+      break;
+    }
+    default:
+      poly(9, .25); c.fillStyle = "#7d828c"; c.fill();
+      hiEllipse("#a3a8b2");
+  }
+}
+
+// ---- 岸の飾り ----
+function drawBankDeco(c, px, py, s, th, j, h, t) {
+  const [c0, c1] = th.decoC;
+  switch (th.deco) {
+    case "pine":
+      c.fillStyle = c0;
+      c.beginPath(); c.moveTo(px, py - 22 * s); c.lineTo(px + 13 * s, py + 10 * s); c.lineTo(px - 13 * s, py + 10 * s); c.fill();
+      c.fillStyle = c1;
+      c.beginPath(); c.moveTo(px, py - 14 * s); c.lineTo(px + 8 * s, py + 4 * s); c.lineTo(px - 8 * s, py + 4 * s); c.fill();
+      c.fillStyle = "#fff";
+      c.beginPath(); c.moveTo(px, py - 22 * s); c.lineTo(px + 5 * s, py - 13 * s); c.lineTo(px - 5 * s, py - 13 * s); c.fill();
+      break;
+    case "cactus":
+      c.fillStyle = c0;
+      c.fillRect(px - 4 * s, py - 16 * s, 8 * s, 26 * s);
+      c.fillRect(px - 12 * s, py - 6 * s, 8 * s, 4 * s); c.fillRect(px - 12 * s, py - 14 * s, 4 * s, 10 * s);
+      c.fillRect(px + 4 * s, py - 2 * s, 8 * s, 4 * s); c.fillRect(px + 8 * s, py - 10 * s, 4 * s, 10 * s);
+      c.fillStyle = c1; c.fillRect(px - 2 * s, py - 15 * s, 2 * s, 22 * s);
+      break;
+    case "crater": {
+      c.fillStyle = c0; c.beginPath(); c.ellipse(px, py, 15 * s, 10 * s, 0, 0, 7); c.fill();
+      const a = 0.5 + 0.5 * Math.sin(t * 2 + h * 20);
+      c.fillStyle = `rgba(255,90,30,${0.5 + a * 0.5})`; c.beginPath(); c.ellipse(px, py, 7 * s, 4 * s, 0, 0, 7); c.fill();
+      break;
+    }
+    case "star": {
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * 2 + h * 40));
+      c.globalAlpha = tw; c.fillStyle = j % 2 ? c1 : c0;
+      c.beginPath(); c.arc(px, py, (1.2 + h * 3) * s, 0, 7); c.fill();
+      c.globalAlpha = 1;
+      if (h < 0.04) {
+        c.fillStyle = "#c98bff"; c.beginPath(); c.arc(px, py, 9 * s, 0, 7); c.fill();
+        c.strokeStyle = "#f0d8ff"; c.lineWidth = 2 * s; c.beginPath(); c.ellipse(px, py, 15 * s, 4 * s, -0.3, 0, 7); c.stroke();
+      }
+      break;
+    }
+    case "palm":
+      c.strokeStyle = c0; c.lineWidth = 4 * s;
+      c.beginPath(); c.moveTo(px, py + 14 * s); c.quadraticCurveTo(px + 5 * s, py, px + 2 * s, py - 12 * s); c.stroke();
+      c.fillStyle = c1;
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI / 2 + (k - 2) * 0.75;
+        c.beginPath(); c.ellipse(px + 2 * s + Math.cos(a) * 9 * s, py - 12 * s + Math.sin(a) * 6 * s, 10 * s, 3 * s, a, 0, 7); c.fill();
+      }
+      break;
+    case "bamboo":
+      for (let k = -1; k <= 1; k++) {
+        const bx = px + k * 7 * s, top = py - (18 + hash(h + k) * 10) * s;
+        c.fillStyle = k ? c0 : c1; c.fillRect(bx - 2.5 * s, top, 5 * s, py + 14 * s - top);
+        c.fillStyle = "rgba(0,0,0,.25)";
+        for (let yy = top + 8 * s; yy < py + 12 * s; yy += 9 * s) c.fillRect(bx - 3 * s, yy, 6 * s, 1.5 * s);
+      }
+      break;
+    case "crystal": {   // 光る結晶の柱
+      const hue = (h * 360 + t * 40) % 360;
+      c.fillStyle = `hsla(${hue},100%,70%,.25)`; c.beginPath(); c.arc(px, py, 16 * s, 0, 7); c.fill();
+      for (let k = -1; k <= 1; k++) {
+        const hh = (14 + hash(h * 9 + k) * 12) * s, bx = px + k * 6 * s;
+        c.fillStyle = k ? c0 : c1;
+        c.beginPath(); c.moveTo(bx, py - hh); c.lineTo(bx + 4 * s, py - hh + 6 * s); c.lineTo(bx + 4 * s, py + 8 * s);
+        c.lineTo(bx - 4 * s, py + 8 * s); c.lineTo(bx - 4 * s, py - hh + 6 * s); c.closePath(); c.fill();
+      }
+      c.fillStyle = "rgba(255,255,255,.8)"; c.fillRect(px - 1 * s, py - 12 * s, 2 * s, 14 * s);
+      break;
+    }
+    case "cloud":
+      c.fillStyle = c1; c.beginPath(); c.arc(px - 8 * s, py + 2 * s, 9 * s, 0, 7); c.arc(px + 8 * s, py + 2 * s, 9 * s, 0, 7); c.fill();
+      c.fillStyle = c0; c.beginPath(); c.arc(px, py - 4 * s, 12 * s, 0, 7); c.arc(px - 12 * s, py + 3 * s, 7 * s, 0, 7); c.arc(px + 12 * s, py + 3 * s, 7 * s, 0, 7); c.fill();
+      break;
+    case "kelp":
+      c.strokeStyle = j % 2 ? c1 : c0; c.lineWidth = 4 * s; c.lineCap = "round";
+      for (let k = -1; k <= 1; k += 2) {
+        c.beginPath(); c.moveTo(px + k * 5 * s, py + 14 * s);
+        for (let q = 1; q <= 4; q++) c.lineTo(px + k * 5 * s + Math.sin(t * 1.5 + q + h * 10) * 4 * s, py + 14 * s - q * 8 * s);
+        c.stroke();
+      }
+      c.lineCap = "butt";
+      if (h < 0.12) {   // ときどき光るクラゲ
+        c.fillStyle = "rgba(160,120,255,.55)"; c.beginPath(); c.arc(px, py - 22 * s, 7 * s, Math.PI, 0); c.fill();
+      }
+      break;
+    case "candy": {
+      c.strokeStyle = "#fff"; c.lineWidth = 2 * s;
+      c.beginPath(); c.moveTo(px, py); c.lineTo(px, py + 16 * s); c.stroke();
+      c.fillStyle = j % 2 ? c1 : c0; c.beginPath(); c.arc(px, py, 9 * s, 0, 7); c.fill();
+      c.strokeStyle = "rgba(255,255,255,.85)"; c.lineWidth = 2 * s;
+      c.beginPath(); c.arc(px, py, 5 * s, 0, 4.5); c.stroke();
+      break;
+    }
+    default:
+      c.fillStyle = c0; c.beginPath(); c.arc(px, py, 14 * s, 0, 7); c.fill();
+      c.fillStyle = c1; c.beginPath(); c.arc(px - 3 * s, py - 3 * s, 10 * s, 0, 7); c.fill();
+  }
+}
+
+// ---- 川そのものの特別な光（到達点の背景用） ----
+function drawRiverFx(c, left, right, H, t, scroll, kind) {
+  const w = right - left;
+  c.save();
+  c.beginPath(); c.rect(left, 0, w, H); c.clip();
+  if (kind === "aurora") {   // オーロラの帯が川の中をゆらめく
+    c.lineCap = "round";
+    for (let k = 0; k < 3; k++) {
+      const hue = (k * 110 + t * 25) % 360;
+      c.strokeStyle = `hsla(${hue},95%,62%,.20)`; c.lineWidth = w * (0.16 - k * 0.03);
+      c.beginPath();
+      for (let y = -20; y <= H + 20; y += 16) {
+        const x = left + w * (0.5 + 0.3 * Math.sin((y + scroll) * 0.006 + t * 0.7 + k * 2.1));
+        y > -20 ? c.lineTo(x, y) : c.moveTo(x, y);
+      }
+      c.stroke();
+    }
+    c.lineCap = "butt";
+  } else if (kind === "radiance") {   // 川の上を流れる光の筋
+    const g = c.createLinearGradient(left, 0, right, 0);
+    g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,.35)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    c.fillStyle = g; c.fillRect(left, 0, w, H);
+    for (let k = 0; k < 7; k++) {
+      const x = left + w * hash(k * 3.7 + 1), len = H * (0.25 + hash(k) * 0.3);
+      const y = ((t * (90 + k * 25) + k * 211 + scroll * 0.4) % (H + len)) - len;
+      const lg = c.createLinearGradient(0, y, 0, y + len);
+      lg.addColorStop(0, "rgba(255,250,220,0)"); lg.addColorStop(0.5, "rgba(255,250,220,.65)"); lg.addColorStop(1, "rgba(255,250,220,0)");
+      c.fillStyle = lg; c.fillRect(x - 2, y, 4, len);
+    }
+  }
+  c.restore();
+}
+
+// ---- 天気（画面上を舞うもの） ----
+const weather = [];
+let weatherLast = performance.now();
+function drawWeather(c) {
+  const kind = TH.weather;
+  const now = performance.now(), dt = Math.min(0.05, (now - weatherLast) / 1000);
+  weatherLast = now;
+  if (!kind) return;
+  const N = kind === "firefly" ? 35 : kind === "bubble" ? 40 : 60;
+  while (weather.length < N) weather.push({ x: Math.random() * CW, y: Math.random() * CH, s: Math.random(), p: Math.random() * 6 });
+  for (const w of weather) {
+    w.p += dt * (0.8 + w.s);
+    if (kind === "petal" || kind === "leaf") { w.x += (15 + w.s * 25) * dt; w.y += (40 + w.s * 50) * dt; }
+    else if (kind === "snow") { w.y += (30 + w.s * 50) * dt; w.x += Math.sin(w.p) * 15 * dt; }
+    else if (kind === "firefly") { w.x += Math.cos(w.p) * 25 * dt; w.y += Math.sin(w.p * 1.3) * 25 * dt; }
+    else if (kind === "ember") { w.y -= (40 + w.s * 70) * dt; w.x += Math.sin(w.p) * 10 * dt; }
+    else if (kind === "rain") { w.y += (500 + w.s * 300) * dt; w.x += 60 * dt; }
+    else if (kind === "sparkle" || kind === "bubble") { w.y -= (25 + w.s * 45) * dt; w.x += Math.sin(w.p) * 12 * dt; }
+    else if (kind === "glow") { w.y += (18 + w.s * 30) * dt; w.x += Math.sin(w.p) * 10 * dt; }
+    if (w.y > CH + 10) { w.y = -10; w.x = Math.random() * CW; }
+    if (w.y < -10) { w.y = CH + 10; w.x = Math.random() * CW; }
+    if (w.x > CW + 10) w.x = -10;
+    if (w.x < -10) w.x = CW + 10;
+    if (kind === "petal" || kind === "leaf") {
+      c.fillStyle = kind === "petal" ? (w.s > .5 ? "#ffc4d6" : "#ff9ec0") : (w.s > .5 ? "#e8742c" : "#c0392b");
+      c.beginPath(); c.ellipse(w.x, w.y, 4 + w.s * 2, 2 + w.s, w.p, 0, 7); c.fill();
+    } else if (kind === "snow") {
+      c.fillStyle = "rgba(255,255,255,.85)";
+      c.beginPath(); c.arc(w.x, w.y, 1.5 + w.s * 2, 0, 7); c.fill();
+    } else if (kind === "firefly") {
+      const a = 0.3 + 0.7 * Math.abs(Math.sin(w.p * 2));
+      c.fillStyle = `rgba(255,240,120,${a * 0.35})`; c.beginPath(); c.arc(w.x, w.y, 7, 0, 7); c.fill();
+      c.fillStyle = `rgba(255,250,180,${a})`; c.beginPath(); c.arc(w.x, w.y, 2, 0, 7); c.fill();
+    } else if (kind === "rain") {
+      c.strokeStyle = "rgba(200,225,255,.45)"; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(w.x, w.y); c.lineTo(w.x - 3, w.y - 14 - w.s * 8); c.stroke();
+    } else if (kind === "sparkle") {   // 虹色に瞬きながら昇る光
+      const a = Math.abs(Math.sin(w.p * 2)), r = 1.5 + w.s * 2.5;
+      c.fillStyle = `hsla(${(w.s * 360 + w.p * 40) % 360},100%,75%,${a})`;
+      c.beginPath(); c.moveTo(w.x, w.y - r * 2); c.lineTo(w.x + r * .5, w.y); c.lineTo(w.x, w.y + r * 2); c.lineTo(w.x - r * .5, w.y); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(w.x - r * 2, w.y); c.lineTo(w.x, w.y + r * .5); c.lineTo(w.x + r * 2, w.y); c.lineTo(w.x, w.y - r * .5); c.closePath(); c.fill();
+    } else if (kind === "glow") {   // 降りそそぐ金色の光
+      const a = 0.4 + 0.6 * Math.abs(Math.sin(w.p * 1.5));
+      c.fillStyle = `rgba(255,220,120,${a * 0.3})`; c.beginPath(); c.arc(w.x, w.y, 6 + w.s * 4, 0, 7); c.fill();
+      c.fillStyle = `rgba(255,250,220,${a})`; c.beginPath(); c.arc(w.x, w.y, 1.5 + w.s * 1.5, 0, 7); c.fill();
+    } else if (kind === "bubble") {
+      c.strokeStyle = "rgba(170,240,255,.55)"; c.lineWidth = 1;
+      c.beginPath(); c.arc(w.x, w.y, 2 + w.s * 4, 0, 7); c.stroke();
+    } else if (kind === "ember") {
+      c.fillStyle = `rgba(255,${140 + w.s * 80 | 0},40,.8)`;
+      c.beginPath(); c.arc(w.x, w.y, 1.5 + w.s * 1.5, 0, 7); c.fill();
+    }
+  }
+}
+
+// ---- 着せ替え画面のプレビュー ----
+function drawPreview(cnv, cat, item) {
+  const d = 2, W = 150, H = 90;
+  cnv.width = W * d; cnv.height = H * d;
+  const c = cnv.getContext("2d");
+  c.setTransform(d, 0, 0, d, 0, 0);
+  const th = cat === "theme" ? item : TH;
+  const riverBg = () => {
+    const g = c.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, th.river[0]); g.addColorStop(0.5, th.river[1]); g.addColorStop(1, th.river[0]);
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+  };
+  if (cat === "theme") {
+    c.fillStyle = th.grass; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 6; i++) {
+      const side = i % 2 ? 1 : 0, x = side ? W - 14 - (i % 3) * 3 : 12 + (i % 3) * 3, y = 12 + i * 13;
+      drawBankDeco(c, x, y, 0.55, th, i, (i * 0.17) % 1, 1);
+    }
+    c.fillStyle = th.sand; c.fillRect(30, 0, W - 60, H);
+    const g = c.createLinearGradient(35, 0, W - 35, 0);
+    g.addColorStop(0, th.river[0]); g.addColorStop(0.5, th.river[1]); g.addColorStop(1, th.river[0]);
+    c.fillStyle = g; c.fillRect(35, 0, W - 70, H);
+    if (th.riverFx) drawRiverFx(c, 35, W - 35, H, performance.now() / 1000, 0, th.riverFx);
+    c.strokeStyle = th.wave; c.lineWidth = 1.5;
+    for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(50 + (i * 23) % 60, 15 + i * 15, 7, Math.PI * 1.15, Math.PI * 1.85); c.stroke(); }
+    drawStone(c, W / 2, H * 0.62, 5, SK, false, 0.3, 0);
+  } else if (cat === "stone") {
+    riverBg();
+    const pts = [[45, 55, 7, false, .1], [75, 35, 8, false, .4], [100, 60, 7, false, .7], [70, 70, 6, true, .9]];
+    for (const [x, y, r, gold, sd] of pts) {
+      c.fillStyle = "rgba(0,0,0,.25)"; c.beginPath(); c.ellipse(x, y + 6, r, r * .6, 0, 0, 7); c.fill();
+      drawStone(c, x, y, r, item, gold, sd, 0);
+    }
+  } else {
+    riverBg();
+    c.fillStyle = "rgba(255,255,255,.35)"; c.beginPath(); c.arc(W / 2, H / 2, 32, 0, 7); c.fill();
+    drawRockSkin(c, W / 2, H / 2, 27, 3.7, item.id, 0);
+  }
+}
+
+let closetCat = "stone";
+function openCloset() {
+  el("titleScreen").classList.add("hidden");
+  el("closetScreen").classList.remove("hidden");
+  renderCloset();
+}
+function renderCloset() {
+  const grid = el("closetGrid");
+  grid.innerHTML = "";
+  for (const item of COS[closetCat]) {
+    const ok = isUnlocked(item), sel = PROF.sel[closetCat] === item.id;
+    const div = document.createElement("div");
+    div.className = "item" + (sel ? " sel" : "") + (ok ? "" : " locked") + (item.legend ? " legend" : "");
+    const cnv = document.createElement("canvas");
+    drawPreview(cnv, closetCat, item);
+    div.appendChild(cnv);
+    let info;
+    if (!ok) {
+      const pct = clamp(condValue(item.cond.type) / item.cond.v * 100, 0, 100);
+      info = `<div class="nm">🔒 ${item.name}</div><div class="cd">${condText(item.cond)}</div><div class="pb"><div style="width:${pct}%"></div></div>`;
+    } else {
+      // 解放したあとも条件は残して表示する（初期デザインは条件なし）
+      info = `<div class="nm">${item.name}</div><div class="cd">${item.cond ? "🔓 " + condText(item.cond) : "はじめから使える"}</div><div class="cd">${sel ? "✅ 使用中" : "クリックで使う"}</div>`;
+    }
+    div.insertAdjacentHTML("beforeend", info);
+    if (ok) div.addEventListener("click", () => {
+      PROF.sel[closetCat] = item.id;
+      saveProfile(); applySkins(); renderCloset();
+    });
+    grid.appendChild(div);
+  }
+}
+function renderProfileLine() {
+  const n = Object.values(COS).flat().filter(i => isUnlocked(i)).length, all = Object.values(COS).flat().length;
+  el("profileLine").innerHTML = `累計得点 <b>${fmt(PROF.total)}</b> ・ 最高得点 <b>${fmt(PROF.best)}</b> ・ 最高距離 <b>${fmt(PROF.bestDist)} m</b>
+    ・ プレイ <b>${PROF.plays}</b> 回 ・ デザイン <b>${n} / ${all}</b><br>
+    最大の石の数 <b>${fmt(PROF.maxStones || 0)}</b> ・ 壊した障害物 <b>${fmt(PROF.rocks || 0)}</b> ・ 障害物破壊の得点 <b>${fmt(PROF.rockPts || 0)}</b>
+    ・ 金の石 <b>${fmt(PROF.gold || 0)}</b> ・ ハイジャンプ中の得点 <b>${fmt(PROF.high || 0)}</b>`;
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const yTop = G.camY + (CH * ANCHOR) / SCALE + 50;
+  const yBot = G.camY - (CH * (1 - ANCHOR)) / SCALE - 50;
+
+  // 岸
+  ctx.fillStyle = TH.grass;
+  ctx.fillRect(0, 0, CW, CH);
+  const decoChance = TH.deco === "star" ? 0.9 : 0.35;
+  const step = 70;
+  for (let y = Math.floor(yBot / step) * step; y < yTop; y += step) {
+    for (let side = -1; side <= 1; side += 2) {
+      for (let j = 0; j < 3; j++) {
+        const h = hash(y * 0.37 + side * 11 + j * 3.1);
+        const x = side * (RIVER_W / 2 + 30 + h * (BANK_W + 200));
+        const px = sx(x), py = sy(y + hash(y + j) * step);
+        if (h < decoChance) {
+          drawBankDeco(ctx, px, py, SCALE, TH, j, h, G.time);
+        } else if (h < decoChance + 0.15 && TH.flowers.length) {
+          ctx.fillStyle = TH.flowers[j % TH.flowers.length];
+          ctx.beginPath(); ctx.arc(px, py, 3 * SCALE, 0, 7); ctx.fill();
+        }
+      }
+    }
+  }
+  // 砂浜と川
+  const rl = sx(-RIVER_W / 2), rr = sx(RIVER_W / 2);
+  ctx.fillStyle = TH.sand;
+  ctx.fillRect(rl - 12 * SCALE, 0, rr - rl + 24 * SCALE, CH);
+  const grad = ctx.createLinearGradient(rl, 0, rr, 0);
+  grad.addColorStop(0, TH.river[0]); grad.addColorStop(0.5, TH.river[1]); grad.addColorStop(1, TH.river[0]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(rl, 0, rr - rl, CH);
+  if (TH.riverFx) drawRiverFx(ctx, rl, rr, CH, G.time, G.camY * SCALE, TH.riverFx);
+  // 波
+  if (TH.riverStars) {
+    for (let y = Math.floor(yBot / 30) * 30; y < yTop; y += 30) {
+      for (let j = 0; j < 3; j++) {
+        const hh = hash(y * 0.71 + j * 5.3);
+        ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(G.time * 2 + hh * 30));
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(sx(-RIVER_W / 2 + hh * RIVER_W), sy(y + hash(y + j) * 30), (0.8 + hh * 1.6) * SCALE, 0, 7); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.strokeStyle = TH.wave;
+  ctx.lineWidth = 2 * SCALE;
+  for (let y = Math.floor(yBot / 45) * 45; y < yTop; y += 45) {
+    for (let j = 0; j < 3; j++) {
+      const x = -RIVER_W / 2 + hash(y * 0.13 + j * 7.7) * RIVER_W;
+      ctx.beginPath();
+      ctx.arc(sx(x), sy(y), 12 * SCALE, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    }
+  }
+
+  // 渦潮
+  for (const w of G.whirls) {
+    if (w.y < yBot - 100 || w.y > yTop + 100) continue;
+    const px = sx(w.x), py = sy(w.y);
+    ctx.fillStyle = "rgba(10, 50, 90, .35)";
+    ctx.beginPath(); ctx.arc(px, py, w.r * SCALE, 0, 7); ctx.fill();
+    ctx.strokeStyle = "rgba(200, 240, 255, .55)";
+    ctx.lineWidth = 2 * SCALE;
+    for (let a = 0; a < 3; a++) {
+      ctx.beginPath();
+      for (let s = 0; s < 40; s++) {
+        const ang = G.time * 4 + a * 2.1 + s * 0.18;
+        const rr2 = (w.r - s * 1.8) * SCALE;
+        const qx = px + Math.cos(ang) * rr2, qy = py + Math.sin(ang) * rr2;
+        s ? ctx.lineTo(qx, qy) : ctx.moveTo(qx, qy);
+      }
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#06223d";
+    ctx.beginPath(); ctx.arc(px, py, w.core * SCALE, 0, 7); ctx.fill();
+  }
+
+  // ゲート
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (const g of G.gates) {
+    if (g.y < yBot - 40 || g.y > yTop + 40) continue;
+    const py = sy(g.y);
+    const x0 = sx(g.x0), x1 = sx(g.x1), h = 36 * SCALE;
+    ctx.globalAlpha = g.hits ? 0.25 : 0.68;
+    ctx.fillStyle = g.color;
+    ctx.fillRect(x0, py - h / 2, x1 - x0, h);
+    ctx.globalAlpha = g.hits ? 0.4 : 1;
+    ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x0, py - h / 2, x1 - x0, h);
+    // 文字はゲートの幅に収まるよう縮める
+    let fs = Math.round(16 * SCALE);
+    ctx.font = `bold ${fs}px "Hiragino Sans","Yu Gothic",sans-serif`;
+    const tw = ctx.measureText(g.label).width, maxW = x1 - x0 - 16;
+    if (tw > maxW) {
+      fs = Math.max(9, Math.floor(fs * maxW / tw));
+      ctx.font = `bold ${fs}px "Hiragino Sans","Yu Gothic",sans-serif`;
+    }
+    ctx.fillStyle = "#fff";
+    ctx.fillText(g.label, (x0 + x1) / 2, py);
+    // 柱
+    ctx.fillStyle = "#5a3d22";
+    ctx.fillRect(x0 - 4, py - h / 2 - 6, 8, h + 12);
+    ctx.fillRect(x1 - 4, py - h / 2 - 6, 8, h + 12);
+    ctx.globalAlpha = 1;
+  }
+
+  // 岩
+  for (const r of G.rocks) {
+    if (!r.alive || r.y < yBot - 50 || r.y > yTop + 50) continue;
+    const px = sx(r.x), py = sy(r.y), rad = r.r * SCALE;
+    ctx.fillStyle = "rgba(0,0,0,.25)";
+    ctx.beginPath(); ctx.ellipse(px + 4, py + 5, rad, rad * 0.8, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.35)";
+    ctx.beginPath(); ctx.arc(px, py, rad + 4 * SCALE + Math.sin(G.time * 3 + r.seed) * 1.5, 0, 7); ctx.fill();
+    drawRockSkin(ctx, px, py, rad, r.seed, RK.id, G.time);
+  }
+
+  // 流木
+  for (const l of G.logs) {
+    if (!l.alive || l.y < yBot - 50 || l.y > yTop + 50) continue;
+    const px = sx(l.x), py = sy(l.y), w = l.w * SCALE, h = 18 * SCALE;
+    ctx.fillStyle = "rgba(255,255,255,.3)";
+    ctx.fillRect(px - w / 2 - 4, py - h / 2 - 4, w + 8, h + 8);
+    ctx.fillStyle = "#8a5a2b";
+    ctx.fillRect(px - w / 2, py - h / 2, w, h);
+    ctx.fillStyle = "#a8743d";
+    ctx.fillRect(px - w / 2, py - h / 2, w, h * 0.35);
+    ctx.fillStyle = "#c79a62";
+    ctx.beginPath(); ctx.ellipse(px + w / 2, py, h * 0.3, h / 2, 0, 0, 7); ctx.fill();
+  }
+
+  // 波紋
+  for (const r of G.ripples) {
+    const p = r.age / 0.8;
+    ctx.strokeStyle = `rgba(${TH.ripple},${(1 - p) * 0.7})`;
+    ctx.lineWidth = (r.big ? 3 : 2) * SCALE;
+    ctx.beginPath();
+    ctx.ellipse(sx(r.x), sy(r.y), (4 + p * (r.big ? 34 : 20)) * SCALE, (3 + p * (r.big ? 24 : 14)) * SCALE, 0, 0, 7);
+    ctx.stroke();
+  }
+
+  // 石
+  const breaker = G.effects.breaker > 0;
+  for (const e of G.ents) {
+    const x = G.groupX + e.rx, y = G.camY + e.ry;
+    const py = sy(y);
+    if (py < -30 || py > CH + 30) continue;
+    const px = sx(x);
+    const z = e.z || 0;
+    const sink = e.sink ? Math.max(0, 1 - e.sink / 1.2) : 1;
+    const base = (e.n > 1 ? 5 + Math.min(4, Math.log10(e.n) * 1.5) : 5) * SCALE * sink;
+    if (base <= 0.2) continue;
+    ctx.fillStyle = "rgba(0,0,0,.28)";
+    ctx.beginPath(); ctx.ellipse(px, py, base, base * 0.6, 0, 0, 7); ctx.fill();
+    const lift = z * SCALE * 1.4;
+    const sc = 1 + z / 40;
+    if (breaker) {
+      ctx.fillStyle = "rgba(255,80,60,.45)";
+      ctx.beginPath(); ctx.arc(px, py - lift, base * sc + 3, 0, 7); ctx.fill();
+    }
+    drawStone(ctx, px, py - lift, base * sc, SK, e.gold, e.seed ?? 0.5, G.time);
+  }
+
+  // 破片
+  for (const d of G.debris) {
+    ctx.globalAlpha = 1 - d.age / d.life;
+    ctx.fillStyle = d.color;
+    ctx.fillRect(sx(d.x) - d.size / 2, sy(d.y) - d.size / 2, d.size, d.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // 名前ラベル
+  if (mode === "play" && G.ents.length) {
+    ctx.font = `bold ${Math.round(13 * SCALE)}px "Hiragino Sans","Yu Gothic",sans-serif`;
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    const lx = sx(G.groupX + avgRx()), ly = sy(G.camY) + 30 * SCALE;
+    ctx.fillText(`${G.name}`, lx, ly);
+    ctx.font = `900 ${Math.round(18 * SCALE)}px "Hiragino Sans","Yu Gothic",sans-serif`;
+    ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.75)";
+    const ct = "×" + fmt(Math.floor(G.total));
+    ctx.strokeText(ct, lx, ly + 20 * SCALE);
+    ctx.fillStyle = "#fff"; ctx.fillText(ct, lx, ly + 20 * SCALE);
+  }
+
+  drawWeather(ctx);
+
+  // 浮かぶ文字
+  for (const tx of G.texts) {
+    ctx.globalAlpha = Math.min(1, (1.4 - tx.age) * 2);
+    ctx.font = `900 ${Math.round(tx.size * SCALE)}px "Hiragino Sans","Yu Gothic",sans-serif`;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "rgba(0,0,0,.7)";
+    ctx.strokeText(tx.text, sx(tx.x), sy(tx.y));
+    ctx.fillStyle = tx.color;
+    ctx.fillText(tx.text, sx(tx.x), sy(tx.y));
+  }
+  ctx.globalAlpha = 1;
+}
+
+// =====================================================================
+//  HUD
+// =====================================================================
+const el = id => document.getElementById(id);
+function showHud(on) {
+  ["scorePanel", "statPanel", "energyWrap", "effects", "stoneCount"].forEach(id => el(id).classList.toggle("hidden", !on));
+  if (!on) el("detailPanel").classList.add("hidden");
+  if (MOBILE) {
+    el("mTop").classList.toggle("off", !on);
+    el("mBottom").classList.toggle("off", !on);
+    resize();
+    el("detailPanel").style.bottom = (el("mBottom").offsetHeight + 8) + "px";
+  }
+}
+let hudTimer = 0;
+function updateHud(dt) {
+  hudTimer -= dt;
+  if (hudTimer > 0) return;
+  hudTimer = 0.08;
+  el("pName").textContent = "🪨 " + G.name;
+  el("pScore").textContent = fmt(totalScore()) + " 点";
+  // 石の数（増えたら緑、減ったら赤く一瞬光る）
+  const sc = el("stoneCount"), cur = Math.floor(G.total);
+  if (sc.dataset.prev !== undefined) {
+    const prev = +sc.dataset.prev;
+    sc.classList.toggle("up", cur > prev);
+    sc.classList.toggle("down", cur < prev);
+  }
+  sc.dataset.prev = cur;
+  el("stoneNum").textContent = fmt(cur) + " 個";
+  el("pFormula").innerHTML =
+    `跳ね点 <b>${fmt(G.skipScore)}</b> × 倍率 <b>${fmt(G.mult)}</b> ＋ 特殊点 <b>${fmt(G.bonus)}</b>`;
+  const rows = [
+    ["石の数", fmt(G.total)],
+    ["跳ねた回数", fmt(G.skips)],
+    ["距離", fmt(Math.floor(G.camY / 10)) + " m"],
+    ["基礎点", fmt(G.skipBase)],
+    ["跳ね速度", G.skipRate.toFixed(1) + " 回/秒"],
+  ];
+  if (G.rockHitBonus) rows.push(["岩衝突ボーナス", "+" + fmt(G.rockHitBonus)]);
+  if (G.bonusMult > 1) rows.push(["特殊点倍率", "×" + fmt(G.bonusMult)]);
+  el("statPanel").innerHTML = rows.map(([a, b]) => `<div class="row"><span>${a}</span><span>${b}</span></div>`).join("");
+  el("energyNum").textContent = Math.ceil(G.energy) + " / " + ENERGY_MAX;
+  el("energyFill").style.width = clamp(G.energy / ENERGY_MAX * 100, 0, 100) + "%";
+  const low = G.energy < 25;
+  el("energyFill").style.background = low ? "linear-gradient(90deg,#ff3d3d,#ffb03d)" : "";
+  el("energyWrap").classList.toggle("low", low);
+  // 効果の残り時間ゲージ
+  const fx = [];
+  const bar = (name, icon, label, color) => {
+    const r = G.effects[name];
+    if (r <= 0) return;
+    const pct = clamp(r / G.effectsMax[name] * 100, 0, 100);
+    fx.push(`<div class="fxbar"><div class="fxfill" style="width:${pct}%;background:${color}"></div>
+      <div class="fxtext">${icon} ${label} 残り ${r.toFixed(1)} 秒</div></div>`);
+  };
+  bar("breaker", "💥", "障害物破壊", "linear-gradient(90deg,#c0262b,#ff6a3d)");
+  bar("high", "🚀", "ハイジャンプ", "linear-gradient(90deg,#1593b8,#5fe3ff)");
+  el("effects").innerHTML = fx.join("");
+  if (MOBILE && el("mTop").offsetHeight !== TOPH) resize();
+  if (!el("detailPanel").classList.contains("hidden")) el("detailPanel").innerHTML = detailHTML();
+}
+
+// 得点の詳細
+const GATE_NAMES = {
+  add: "+N 石", mul: "×N 石", magnet: "集合", energy: "エネルギー +", energyBig: "⚡エネルギー +", base: "基礎点 +",
+  xmult: "得点倍率 + / ×", basex: "基礎点 ×", rockbonus: "岩衝突 +", gold: "金の石 +", skipspeed: "跳ね速度 UP", breaker: "障害物破壊",
+  high: "ハイジャンプ", bonusx: "特殊点 ×2", coin: "特殊点 +", gamble: "？？？",
+  sub: "−N 石", half: "石 半減", drain: "エネルギー −", scatter: "散らばる",
+};
+function detailHTML() {
+  const b = G.bd, total = totalScore() || 1;
+  const pct = v => `<span class="pct">${(v / total * 100).toFixed(1)}%</span>`;
+  const row = (a, v, cls = "", p = true) => `<div class="r ${cls}"><span>${a}</span><span>${fmt(v)}${p ? pct(v) : ""}</span></div>`;
+  let h = "<h3>🪨 跳ね点（× 特殊倍率 " + fmt(G.mult) + " 後）</h3>";
+  h += row("普通の石", b.skipNormal * G.mult);
+  h += row("金の石", b.skipGold * G.mult);
+  h += row("うちハイジャンプ中", b.skipHigh * G.mult, "sub", false);
+  h += `<div class="r sub"><span>倍率をかける前の跳ね点</span><span>${fmt(G.skipScore)}</span></div>`;
+  h += row("小計", G.skipScore * G.mult, "tot");
+  h += "<h3>✨ 特殊点</h3>";
+  h += row("岩の破壊", b.rockBreak);
+  h += row("流木破壊", b.logBreak);
+  h += row("岩・流木に衝突（岩衝突ボーナス）", b.rockHit);
+  h += row("特殊点ゲート", b.coin);
+  h += row("小計", G.bonus, "tot");
+  h += `<h3>🏁 合計 ${fmt(totalScore())} 点</h3>`;
+  h += "<h3>✖ 特殊倍率の内訳</h3>";
+  h += G.multLog.length ? G.multLog.map(m => `<div class="r sub"><span>${m}</span></div>`).join("") : '<div class="r sub"><span>なし（×1）</span></div>';
+  h += "<h3>🚪 くぐったゲート</h3>";
+  const gates = Object.entries(G.gateLog).sort((a, b) => b[1] - a[1]);
+  h += gates.length ? gates.map(([k, n]) => `<div class="r"><span>${GATE_NAMES[k] || k}</span><span>${n} 回</span></div>`).join("") : '<div class="r sub"><span>まだなし</span></div>';
+  const gam = Object.entries(G.gambleLog);
+  if (gam.length) {
+    h += "<h3>❔ ？？？ の結果</h3>";
+    h += gam.map(([k, n]) => `<div class="r sub"><span>${k}</span><span>${n} 回</span></div>`).join("");
+  }
+  h += "<h3>📉 失った石</h3>";
+  h += `<div class="r"><span>岩・流木に衝突</span><span>${fmt(G.stats.rockHits)}</span></div>`;
+  h += `<div class="r"><span>川の外へ</span><span>${fmt(G.stats.lostBank)}</span></div>`;
+  h += `<div class="r"><span>渦潮</span><span>${fmt(G.stats.lostWhirl)}</span></div>`;
+  return `<div class="bd">${h}</div>`;
+}
+function toggleDetail() {
+  if (!G || (mode !== "play" && mode !== "ending" && mode !== "ready")) return;
+  const p = el("detailPanel");
+  p.classList.toggle("hidden");
+  if (!p.classList.contains("hidden")) { p.innerHTML = detailHTML(); p.scrollTop = 0; }
+}
+
+// =====================================================================
+//  スタート：投げる前の画面 → クリック / Enter で投げる
+// =====================================================================
+let readyAt = 0;
+function startThrow() {
+  const name = el("nameInput").value.trim() || "名無しの石";
+  try { localStorage.setItem(NAME_KEY, name); } catch {}
+  el("titleScreen").classList.add("hidden");
+  el("resultScreen").classList.add("hidden");
+  el("detailPanel").classList.add("hidden");
+  el("detailPanel").scrollTop = 0;
+  el("resultDetailBox").open = false;
+  newGame(name);
+  mode = "ready";
+  readyAt = performance.now();
+  paused = false;
+  el("pauseMsg").classList.add("hidden");
+  el("readyName").textContent = "🪨 " + name;
+  el("readyMsg").classList.remove("hidden");
+  showHud(true);
+  hudTimer = 0;
+  updateHud(0);
+}
+function launch() {
+  if (mode !== "ready" || performance.now() - readyAt < 250) return;
+  el("readyMsg").classList.add("hidden");
+  mode = "play";
+  floatText(0, 140, "シュッ！", "#fff", 26);
+}
+
+// =====================================================================
+//  入力
+// =====================================================================
+document.addEventListener("keydown", e => {
+  if (document.activeElement === el("nameInput")) {
+    if (e.key === "Enter") { el("nameInput").blur(); startThrow(); }
+    return;
+  }
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space"].includes(e.code)) e.preventDefault();
+  keys[e.code] = true;
+  if (e.repeat) return;
+  if ((e.code === "Enter" || e.code === "Space") && mode === "ready") launch();
+  else if (e.code === "Enter" && mode === "result") startThrow();
+});
+document.addEventListener("keyup", e => { keys[e.code] = false; });
+window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+window.addEventListener("pointermove", e => { if (e.pointerType === "mouse") { mouseX = e.clientX; useMouse = true; } });
+el("startBtn").addEventListener("click", startThrow);
+cv.addEventListener("pointerdown", launch);
+// ---- スマホ：押している間だけ左右に動く ----
+function holdButton(id, code) {
+  const b = el(id);
+  const on = e => { e.preventDefault(); keys[code] = true; useMouse = false; b.classList.add("on"); if (mode === "ready") launch(); };
+  const off = () => { keys[code] = false; b.classList.remove("on"); };
+  b.addEventListener("pointerdown", e => { b.setPointerCapture(e.pointerId); on(e); });
+  b.addEventListener("pointerup", off);
+  b.addEventListener("pointercancel", off);
+  b.addEventListener("lostpointercapture", off);
+  b.addEventListener("contextmenu", e => e.preventDefault());
+}
+holdButton("btnL", "ArrowLeft");
+holdButton("btnR", "ArrowRight");
+if (MOBILE) {
+  // 上のバーに 得点・石の数 を並べ、その下に エネルギー と 効果ゲージ を置く
+  el("mRow1").appendChild(el("scorePanel"));
+  el("mRow1").appendChild(el("stoneCount"));
+  el("mTop").appendChild(el("energyWrap"));
+  el("mTop").appendChild(el("effects"));
+  const rules = document.querySelector("#titleScreen .rules");
+  rules.innerHTML = rules.innerHTML.replace(/^[\s\S]*?<br>/, "画面下の <b>◀ ▶</b> を押している間、石の群れが左右に動く。<br>");
+  document.querySelector("#readyMsg .go").textContent = "タップで投げる！";
+  document.addEventListener("touchmove", e => { if (!e.target.closest(".card, #detailPanel")) e.preventDefault(); }, { passive: false });
+}
+el("retryBtn").addEventListener("click", startThrow);
+el("titleBtn").addEventListener("click", () => {
+  el("resultScreen").classList.add("hidden");
+  el("titleScreen").classList.remove("hidden");
+  mode = "title";
+  refreshRecordViews();
+  renderProfileLine();
+});
+el("closetBtn").addEventListener("click", openCloset);
+el("resetDesigns").addEventListener("click", () => {
+  askConfirm("解放したデザインをすべて最初の状態に戻しますか？<br><small>累計得点・最高得点・最高距離・プレイ回数などが0になります。得点の記録は消えません</small>", "リセットする", () => {
+    PROF = { total: 0, best: 0, bestDist: 0, plays: 0, maxStones: 0, rocks: 0, rockPts: 0, gold: 0, high: 0,
+             sel: { stone: "plain", theme: "spring", rock: "stone" } };
+    saveProfile(); applySkins(); renderCloset(); renderProfileLine();
+  });
+});
+el("closetClose").addEventListener("click", () => {
+  el("closetScreen").classList.add("hidden");
+  el("titleScreen").classList.remove("hidden");
+  renderProfileLine();
+});
+document.querySelectorAll("#closetTabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#closetTabs button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  closetCat = b.dataset.cat;
+  renderCloset();
+}));
+
+// =====================================================================
+//  メインループ
+// =====================================================================
+let last = performance.now();
+function frame(nowMs) {
+  const dt = Math.min(0.05, (nowMs - last) / 1000);
+  last = nowMs;
+  if ((mode === "play" || mode === "ending") && !paused) {
+    update(dt);
+    draw();
+    updateHud(dt);
+  } else if (mode === "ready") {
+    G.time += dt;
+    draw();
+  } else if (G && mode !== "title") {
+    draw();
+  } else if (mode === "title") {
+    // タイトル背景：川がゆっくり流れる
+    if (!G) { newGame(""); G.ents = []; }
+    G.camY += 60 * dt; G.time += dt;
+    generateAhead();
+    draw();
+  }
+  requestAnimationFrame(frame);
+}
+
+try { el("nameInput").value = localStorage.getItem(NAME_KEY) || ""; } catch {}
+refreshRecordViews();
+renderProfileLine();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

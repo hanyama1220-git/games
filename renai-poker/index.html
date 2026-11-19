@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ポーカー恋愛シミュレーター</title>
+<meta name="robots" content="noindex, nofollow, noimageindex">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* レイアウト: 1画面に収める。上＝教室の舞台（背景＋立ち絵＋会話）、下＝机（手札・賭け・交換を1行に） */
+:root{
+  --paper:#eef2f7; --ink:#1d2740; --muted:#5f6b85; --line:#c9d3e2; --panel:#ffffff;
+  --desk:#2f5a4c; --desk-ink:#eaf3ee; --card:#ffffff; --card-ink:#1d2740; --red:#c8324a;
+  --pink:#e0577a; --pink-soft:#fbe3ea; --gold:#c99a2e; --glow:rgba(170,215,255,.95);
+  --win-bg:rgba(255,255,255,.9); --win-ink:#1d2740; --win-line:rgba(224,87,122,.55);
+  --f-hand:"Yusei Magic","Zen Kaku Gothic New",system-ui,sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --ch:min(15vh, calc((100vw - 84px) / 5 * 1.4)); --mh:min(8vh, 62px);
+}
+@media (min-width:700px){:root{--ch:min(17vh, calc((min(960px,100vw) - 120px) * .6 / 5 * 1.4 - 6px)); --mh:min(12vh, calc((min(960px,100vw) - 120px) * .4 / 5 * 1.4 - 6px))}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#141925; --ink:#e6eaf3; --muted:#9aa6bf; --line:#2e384c; --panel:#1c2232;
+  --desk:#1f3d34; --desk-ink:#dcebe3; --card:#f4f1ea; --pink:#f07a98; --pink-soft:#3a2230; --gold:#e0b850;
+  --win-bg:rgba(24,29,44,.9); --win-ink:#eef1f8; --win-line:rgba(240,122,152,.55); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#141925; --ink:#e6eaf3; --muted:#9aa6bf; --line:#2e384c; --panel:#1c2232;
+  --desk:#1f3d34; --desk-ink:#dcebe3; --card:#f4f1ea; --pink:#f07a98; --pink-soft:#3a2230; --gold:#e0b850;
+  --win-bg:rgba(24,29,44,.9); --win-ink:#eef1f8; --win-line:rgba(240,122,152,.55); color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;overflow:hidden}
+.wrap{box-sizing:border-box;height:100%;max-width:960px;margin:0 auto;padding-block:8px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-family:var(--f-hand);font-weight:400;font-size:20px;margin:0;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.topbtns{display:flex;gap:6px;flex-shrink:0}
+.topbtns .btn{padding:6px 10px;font-size:13px}
+.wrap>*{min-width:0}
+@media (max-width:480px){h1{font-size:15px}.topbtns .btn{padding:5px 8px;font-size:12px}}
+
+/* 舞台 */
+.stage{position:relative;min-height:0;border-radius:14px;overflow:hidden;background:#9fb6c9;isolation:isolate}
+.bg{position:absolute;inset:0;z-index:0}
+.bg img,.ph-bg{width:100%;height:100%;object-fit:cover;display:block}
+.ph-bg{background:linear-gradient(180deg,#bcd3e6 0%,#e8eef4 55%,#c9b79c 56%,#b7a284 100%)}
+.ph-bg.evening{background:linear-gradient(180deg,#f2a76b 0%,#f6d2a6 55%,#a9876a 56%,#8d6f56 100%)}
+.ph-bg.rain{background:linear-gradient(180deg,#7f93a8 0%,#b8c4d0 55%,#8f8a80 56%,#7b766c 100%)}
+.sprite{position:absolute;z-index:1;bottom:0;left:50%;transform:translateX(-50%);height:97%;aspect-ratio:2/3;max-width:100%;display:flex;align-items:flex-end;justify-content:center}
+.sprite img{height:100%;width:auto;object-fit:contain;object-position:bottom}
+.ph-sprite{height:100%;width:100%;border:2px dashed rgba(255,255,255,.75);border-bottom:0;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:center}
+.ph-label{font-size:11px;background:rgba(0,0,0,.35);color:#fff;padding:2px 8px;border-radius:99px}
+.hud{position:absolute;z-index:2;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.love{position:relative;background:var(--win-bg);color:var(--win-ink);border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;gap:3px;width:min(230px,58%);pointer-events:auto}
+.love-top{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.stage-pill{font-size:11px;background:var(--pink);color:#fff;padding:1px 8px;border-radius:99px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.aff{font-size:11px;color:var(--muted);white-space:nowrap}
+.aff b{font-size:20px;color:var(--pink);font-variant-numeric:tabular-nums;margin-left:4px}
+.gauge{position:relative;height:10px;border-radius:99px;background:rgba(127,140,165,.3);overflow:hidden}
+.gauge i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#f6b3c5,var(--pink));border-radius:99px;transition:width .6s ease}
+.gauge.full i{animation:glow 1.2s ease-in-out infinite alternate}
+@keyframes glow{to{filter:brightness(1.25) saturate(1.3)}}
+.gscale{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ghint{font-size:11px;color:var(--muted)}
+.delta{position:absolute;left:calc(100% + 6px);top:6px;background:var(--win-bg);border-radius:99px;padding:1px 10px;font-weight:700;font-size:18px;white-space:nowrap;font-variant-numeric:tabular-nums;opacity:0;pointer-events:none}
+.delta.up{color:#e0577a}.delta.down{color:#5a7bbf}.delta.even{color:var(--muted)}
+.delta.show{animation:pop 1.8s ease forwards}
+@keyframes pop{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}75%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+.cal{background:var(--win-bg);color:var(--win-ink);border-radius:10px;padding:6px 10px;font-family:var(--f-hand);font-size:15px;text-align:right;line-height:1.2;pointer-events:auto}
+.cal small{display:block;font-family:var(--f-body);font-size:11px;color:var(--muted)}
+.talk{position:absolute;z-index:3;left:8px;right:8px;bottom:8px;background:var(--win-bg);color:var(--win-ink);border:2px solid var(--win-line);
+  border-radius:12px;padding:8px 14px 10px;min-height:52px;max-height:60%;overflow:auto;backdrop-filter:blur(4px)}
+.talk .who{position:sticky;top:0;display:inline-block;margin-top:-2px;background:var(--pink);color:#fff;font-weight:700;font-size:12px;padding:1px 10px;border-radius:99px}
+.talk p{margin:4px 0 0;line-height:1.7;font-size:15px}
+.talk .choices{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+
+/* 机 */
+.desk{background:var(--desk);color:var(--desk-ink);border-radius:14px;padding:10px 14px;display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+@media (min-width:700px){.desk{grid-template-columns:minmax(0,.4fr) minmax(0,.6fr);column-gap:18px}}
+.row-label{font-size:12px;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:baseline;gap:8px;height:1.8em;line-height:1.8em;white-space:nowrap;overflow:hidden}
+.row-label>span:first-child{opacity:.8}
+.row-label>span:last-child{overflow:hidden;text-overflow:ellipsis}
+.hand{display:flex;gap:6px;height:var(--ch)}
+.hand.mini{height:var(--mh);gap:5px}
+.card{box-sizing:border-box;height:100%;aspect-ratio:5/7;flex:0 0 auto;background:var(--card);color:var(--card-ink);border-radius:7px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-weight:700;font-size:calc(var(--ch) * .2);line-height:1.1;border:2px solid transparent;
+  box-shadow:0 2px 0 rgba(0,0,0,.25);transition:transform .15s ease,box-shadow .2s ease;user-select:none;position:relative}
+.mini .card{font-size:calc(var(--mh) * .22);border-radius:5px}
+.card.red{color:var(--red)}
+.card.back{background:repeating-linear-gradient(45deg,#8b2f45 0 6px,#a63b55 6px 12px);border-color:#f4f1ea}
+.card.ghost{opacity:.18}
+.card.joker{background:linear-gradient(160deg,#fff 0%,#f3eafc 100%);color:#6b3fa0}
+.card .jk{font-size:.55em;letter-spacing:.04em}
+.card .jv{font-size:.6em;color:#9a6cc7}
+/* 役に関わるカードは青白く光る */
+.card.part{border-color:#e9f5ff;box-shadow:0 0 0 1px #bfe0ff,0 0 10px 3px var(--glow),0 2px 0 rgba(0,0,0,.25)}
+button.card{cursor:pointer;font-family:inherit;padding:0}
+button.card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.card.held{transform:translateY(-6px)}
+.card.held::after{content:"残す";position:absolute;top:-1.5em;left:50%;transform:translateX(-50%);font-size:11px;color:#fff;background:var(--gold);padding:0 6px;border-radius:99px;font-weight:700}
+.target{display:flex;flex-direction:column;justify-content:center;height:100%;font-size:18px}
+.target small{font-size:11px;opacity:.75}
+.result-line{font-size:12px;line-height:1.5;height:3em;overflow:hidden;margin-top:4px}
+.verdict{font-family:var(--f-hand);font-weight:400;font-size:18px;margin-right:4px}
+.verdict.win{color:#ffd0dc}.verdict.lose{color:#b9cdf5}
+.kc{font-size:12px;opacity:.85;margin-left:4px}
+.controls{grid-column:1/-1;display:flex;flex-wrap:nowrap;gap:6px;align-items:center;overflow-x:auto;min-height:40px;padding-bottom:2px;scrollbar-width:thin}
+.controls>*{flex:0 0 auto}
+.betlab{font-size:12px;opacity:.8}
+.hint-chip{font-size:12px;background:rgba(255,255,255,.14);padding:2px 10px;border-radius:99px;white-space:nowrap}
+
+/* 役名：いい役ほど華やかに（ただし控えめ） */
+.rk{font-weight:700;white-space:nowrap}
+.rk0{font-weight:500;opacity:.7}
+.rk1{color:inherit}
+.rk2{color:#ffc2d1}
+.rk3{font-family:var(--f-hand);font-weight:400;font-size:1.12em;color:#ffd98a}
+.rk4,.rk5{font-family:var(--f-hand);font-weight:400;font-size:1.2em;background:linear-gradient(90deg,#ffe3a3,#ffb6c9,#ffe3a3);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+.rk5{font-size:1.3em;filter:drop-shadow(0 0 4px rgba(255,214,150,.6));animation:shine 3s linear infinite}
+@keyframes shine{to{background-position:200% 0}}
+
+.btn{font-family:var(--f-body);font-size:14px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.btn:hover:not(:disabled){border-color:var(--pink)}
+.btn:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.btn.primary{background:var(--pink);border-color:var(--pink);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.sel{background:var(--pink-soft);border-color:var(--pink);color:var(--pink)}
+.desk .btn{background:rgba(255,255,255,.1);color:var(--desk-ink);border-color:rgba(255,255,255,.25);padding:6px 10px;font-size:13px}
+.desk .btn.primary{background:var(--pink);border-color:var(--pink);color:#fff}
+.desk .btn.sel{background:var(--desk-ink);color:var(--desk);border-color:var(--desk-ink)}
+.talk .btn{text-align:left;flex-direction:column;align-items:flex-start;gap:1px;white-space:normal}
+.talk .btn small{font-weight:400;color:var(--muted);font-size:12px}
+.pts{color:var(--gold);font-variant-numeric:tabular-nums}
+.ic{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.desk .ic{width:16px;height:16px}
+
+/* 引き出し（購買部・遊び方） */
+.drawer{position:fixed;inset:0;z-index:30;background:rgba(10,14,24,.45);display:flex;justify-content:flex-end}
+.drawer-in{box-sizing:border-box;background:var(--panel);color:var(--ink);width:min(440px,100%);height:100%;overflow:auto;display:flex;flex-direction:column;gap:6px;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) 16px}
+.drawer h2{font-family:var(--f-hand);font-weight:400;font-size:22px;margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sh{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:8px 0 0}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+.item>.ic{width:26px;height:26px;color:var(--pink)}
+.it-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.item .nm{font-weight:700}
+.item .ds{font-size:12px;color:var(--muted)}
+.item .act{display:flex;gap:6px;align-items:center}
+.lv{font-size:12px;color:var(--gold);font-variant-numeric:tabular-nums}
+.meter{display:flex;gap:3px;margin-top:3px}
+.meter i{width:12px;height:6px;border-radius:2px;background:var(--line)}
+.meter i.on{background:var(--gold)}
+.own{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.small{font-size:13px;color:var(--muted);line-height:1.8}
+.her b{color:var(--pink);letter-spacing:.1em}
+.payt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;background:var(--desk);color:var(--desk-ink);border-radius:8px;overflow:hidden}
+.payt td{padding:4px 8px;border-top:1px solid rgba(255,255,255,.12)}
+.payt td:not(:first-child){text-align:right}
+.log{font-size:12px;color:var(--muted);line-height:1.7;margin:0;padding-left:18px}
+
+/* 一枚絵 */
+.cg{position:fixed;inset:0;z-index:40;background:#0b0e16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));animation:fade .5s ease}
+@keyframes fade{from{opacity:0}}
+.cg-pic{width:min(960px,100%);aspect-ratio:3/2;max-height:56vh;border-radius:10px;overflow:hidden;position:relative;flex-shrink:1;min-height:0}
+.cg-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-cg{box-sizing:border-box;width:100%;height:100%;background:linear-gradient(135deg,#3a2a4a,#7a4a64 50%,#e0a07a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#fff;text-align:center;padding:16px}
+.ph-cg b{font-family:var(--f-hand);font-weight:400;font-size:22px}
+.ph-cg span{font-size:13px;opacity:.9;max-width:36em;line-height:1.7}
+.cg-text{box-sizing:border-box;width:min(960px,100%);background:rgba(255,255,255,.08);color:#f2f4fa;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:12px 16px;
+  display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto;--mh:min(9vh,64px)}
+.cg-text .eyebrow{font-size:11px;letter-spacing:.14em;color:#f6a3b8;font-weight:700}
+.cg-text h3{font-family:var(--f-hand);font-weight:400;font-size:22px;margin:0}
+.cg-text p{margin:0;line-height:1.8}
+.cg-text .small{color:#b9c0d4}
+.cg-text .btn{align-self:flex-start}
+.cg-res{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.delta.show{opacity:1}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <h1>ポーカー恋愛シミュレーター</h1>
+    <div class="topbtns">
+      <button class="btn" type="button" id="openShop">購買部 <span class="pts" id="ptsTop"></span></button>
+      <button class="btn" type="button" id="openHelp">遊び方</button>
+    </div>
+  </div>
+
+  <section class="stage" aria-label="教室">
+    <div class="bg" id="bg"></div>
+    <div class="sprite" id="sprite"></div>
+    <div class="hud">
+      <div class="love">
+        <div class="love-top"><span class="stage-pill" id="stagePill"></span><span class="aff">好感度<b id="affNum">0</b></span></div>
+        <div class="gauge" id="gauge" role="img"><i id="gaugeFill"></i></div>
+        <div class="gscale"><span id="gFrom"></span><span class="ghint" id="ghint"></span><span id="gTo"></span></div>
+        <span class="delta" id="delta" aria-live="polite"></span>
+      </div>
+      <div class="cal" id="cal"></div>
+    </div>
+    <div class="talk" aria-live="polite">
+      <span class="who" id="who">こはる</span>
+      <p id="say"></p>
+      <div class="choices" id="choices" hidden></div>
+    </div>
+  </section>
+
+  <section class="desk" aria-label="勝負">
+    <div>
+      <div class="row-label"><span id="dLabel">こはるの手札</span><span id="dRank"></span></div>
+      <div class="hand mini" id="dHand"></div>
+      <div class="result-line" id="resultLine"></div>
+    </div>
+    <div>
+      <div class="row-label"><span>あなたの手札（タップで残す）</span><span id="myRank"></span></div>
+      <div class="hand" id="pHand"></div>
+    </div>
+    <div class="controls" id="controls"></div>
+  </section>
+</div>
+
+<div class="drawer" id="shopDrawer" hidden><div class="drawer-in" role="dialog" aria-label="購買部">
+  <h2>購買部 <span class="pts" id="pts"></span><button class="btn" type="button" data-close>閉じる</button></h2>
+  <div id="shop"></div>
+</div></div>
+<div class="drawer" id="helpDrawer" hidden><div class="drawer-in" role="dialog" aria-label="遊び方">
+  <h2>遊び方 <button class="btn" type="button" data-close>閉じる</button></h2>
+  <div class="small">
+    1年間（4月〜3月、各月4週）、毎週1回こはると勝負します。配られたあと、交換する前に<b>賭ける好感度</b>を選べます。「基本」はいつでも賭けられ、上乗せは今の好感度が足りるときだけ選べます。勝つと賭けた分＋役のボーナスが増え、負けると賭けた分が減ります。<br>
+    ゲージが満タンになると<b>イベント</b>。選んだ行動ごとに目標の役があり、作れれば関係が進みます。<br>
+    自分の役に応じて購買ポイントが入り、勝つとさらに＋3。3月の最終週、「気になる人」まで進んでいれば告白できます。<br>
+    役に関わるカードは青白く光ります。
+  </div>
+  <table class="payt" id="payt"></table>
+  <h2>記録</h2>
+  <ol class="log" id="log"></ol>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" id="resetBtn" type="button">最初からやり直す</button><span class="small" id="resetConfirm" hidden>もう一度押すとリセットします</span></div>
+</div></div>
+<div class="cg" id="cg" hidden role="dialog" aria-modal="true"><div class="cg-pic" id="cgPic"></div><div class="cg-text" id="cgText"></div></div>
+
+<script>
+// ===== ポーカー基礎ロジック =====
+const SUITS = ['♠︎','♥︎','♦︎','♣︎'];
+const RANK_NAMES = ['ノーペア','ワンペア','ツーペア','スリーカード','ストレート','フラッシュ','フルハウス','フォーカード','ストレートフラッシュ','ロイヤルフラッシュ','ファイブカード'];
+// 自分の役で入る購買ポイント（勝敗に関係なく定額）
+const RANK_POINTS = [3,6,10,16,24,28,40,60,100,150,250];
+// 勝ったときの好感度ボーナス
+const RANK_BONUS = [0,2,4,7,10,12,16,24,40,60,80];
+const WIN_POINTS = 3; // 勝つと購買Pにさらに+3
+
+function shuffle(d){for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}return d;}
+function newDeck(jokers){
+  const d=[];
+  for(let s=0;s<4;s++) for(let v=2;v<=14;v++) d.push({v,s});
+  for(let i=0;i<(jokers||0);i++) d.push({j:1,v:0,s:-1});
+  return shuffle(d);
+}
+// プレイヤー用：山の上から1枚（ジョーカーも出る）
+function popAny(deck){return deck.pop();}
+// こはる用：ジョーカー以外の一番上
+function popNatural(deck){for(let i=deck.length-1;i>=0;i--) if(!deck[i].j) return deck.splice(i,1)[0]; return null;}
+
+// ジョーカーなしの判定。parts＝役を作っているカードの位置
+function evalNatural(cards){
+  const vs=cards.map(c=>c.v).sort((a,b)=>b-a);
+  const cnt={}; vs.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+  const groups=Object.entries(cnt).map(([v,n])=>({v:+v,n})).sort((a,b)=>b.n-a.n||b.v-a.v);
+  const flush=cards.every(c=>c.s===cards[0].s);
+  const uniq=[...new Set(vs)];
+  let sh=0;
+  if(uniq.length===5){
+    if(uniq[0]-uniq[4]===4) sh=uniq[0];
+    else if(uniq.join()==='14,5,4,3,2') sh=5;
+  }
+  const kick=groups.map(g=>g.v);
+  const all=[0,1,2,3,4];
+  const idxOf=vals=>cards.map((c,i)=>vals.includes(c.v)?i:-1).filter(i=>i>=0);
+  if(groups[0].n===5) return {r:10,k:[groups[0].v],parts:all};
+  if(sh&&flush) return {r:sh===14?9:8,k:[sh],parts:all};
+  if(groups[0].n===4) return {r:7,k:kick,parts:idxOf([groups[0].v])};
+  if(groups[0].n===3&&groups[1].n===2) return {r:6,k:kick,parts:all};
+  if(flush) return {r:5,k:vs,parts:all};
+  if(sh) return {r:4,k:[sh],parts:all};
+  if(groups[0].n===3) return {r:3,k:kick,parts:idxOf([groups[0].v])};
+  if(groups[0].n===2&&groups[1].n===2) return {r:2,k:kick,parts:idxOf([groups[0].v,groups[1].v])};
+  if(groups[0].n===2) return {r:1,k:kick,parts:idxOf([groups[0].v])};
+  return {r:0,k:vs,parts:[]};
+}
+function cmpEval(a,b){
+  if(a.r!==b.r) return a.r-b.r;
+  for(let i=0;i<Math.max(a.k.length,b.k.length);i++){const d=(a.k[i]||0)-(b.k[i]||0); if(d) return d;}
+  return 0;
+}
+// ジョーカーは一番強くなるカードに化ける。subs＝化けた先
+const _evalCache=new Map();
+function evalHand(cards){
+  const key=cards.map(c=>c.j?'J':c.v+'.'+c.s).join(',');
+  if(_evalCache.has(key)) return _evalCache.get(key);
+  const jIdx=cards.map((c,i)=>c.j?i:-1).filter(i=>i>=0);
+  let best;
+  if(!jIdx.length) best=evalNatural(cards);
+  else{
+    const nat=cards.find(c=>!c.j); const suit=nat?nat.s:0;
+    const n=jIdx.length, total=Math.pow(13,n);
+    for(let m=0;m<total;m++){
+      const t=cards.slice(); let x=m; const subs={};
+      jIdx.forEach(i=>{const v=2+(x%13);x=Math.floor(x/13);t[i]={v,s:suit};subs[i]=t[i];});
+      const e=evalNatural(t);
+      if(!best||cmpEval(e,best)>0){best=e;best.subs=subs;}
+    }
+  }
+  if(_evalCache.size>5000) _evalCache.clear();
+  _evalCache.set(key,best);
+  return best;
+}
+// 同じ役のとき、どのカードの差で決まったか（kの何番目）
+function decidingIndex(a,b){
+  if(a.r!==b.r) return -1;
+  for(let i=0;i<Math.max(a.k.length,b.k.length);i++) if((a.k[i]||0)!==(b.k[i]||0)) return i;
+  return -2;
+}
+
+// こはる・自動プレイ用の残し方。smart で4枚ストレートも狙う
+function autoHold(cards,smart){
+  const e=evalHand(cards);
+  if(e.r>=4&&e.r!==7) return [0,1,2,3,4];
+  if(e.parts.length) return e.parts.slice();
+  for(let s=0;s<4;s++){const f=cards.map((c,i)=>c.s===s?i:-1).filter(i=>i>=0); if(f.length===4) return f;}
+  if(smart){
+    const vs=[...new Set(cards.map(c=>c.v))].sort((a,b)=>a-b);
+    for(let lo=2;lo<=11;lo++){
+      const win=[lo,lo+1,lo+2,lo+3];
+      if(win.every(v=>vs.includes(v))) return win.map(v=>cards.findIndex(c=>c.v===v));
+    }
+  }
+  let best=0; cards.forEach((c,i)=>{if(c.v>cards[best].v) best=i;});
+  return cards[best].v>=12?[best]:[];
+}
+// 交換：残さないカードを引き直す
+function drawReplace(cards,hold,deck,pop){
+  pop=pop||popAny;
+  return cards.map((c,i)=>hold.includes(i)?c:pop(deck));
+}
+// 引き直しを2回試して良い方を採る（ツキ・四つ葉）。使わなかった札は山の下へ戻す
+function luckyReplace(cards,hold,deck,pop){
+  const a=drawReplace(cards,hold,deck,pop), b=drawReplace(cards,hold,deck,pop);
+  const pick=cmpEval(evalHand(b),evalHand(a))>0?b:a, rest=pick===a?b:a;
+  rest.forEach((c,i)=>{if(!hold.includes(i)) deck.unshift(c);});
+  return pick;
+}
+function dealN(deck,n,pop){pop=pop||popAny;const h=[];for(let i=0;i<5;i++)h.push(pop(deck));return h;}
+// 複数の手から一番いいものを配る
+function dealBestOf(deck,n,pop){
+  const cands=[];for(let i=0;i<n;i++) cands.push(dealN(deck,5,pop));
+  cands.sort((a,b)=>cmpEval(evalHand(b),evalHand(a)));
+  cands.slice(1).flat().forEach(c=>deck.unshift(c));
+  return cands[0];
+}
+// お守り：3つから一番いい手、さらにワンペア以上を保証
+function dealCharmed(deck){
+  const h=dealBestOf(deck,3);
+  if(evalHand(h).r<1){
+    const base=h.find(c=>!c.j);
+    const i=deck.findIndex(c=>!c.j&&c.v===base.v);
+    const k=h.findIndex(c=>c!==base);
+    if(i>=0){const [m]=deck.splice(i,1);deck.unshift(h[k]);h[k]=m;}
+  }
+  return h;
+}
+
+// ===== 関係の段階 =====
+// 好感度は段階ごとに0から数え直す。next＝イベントが起きる値（最終段階はゲージの満タン値で、数値は上限なし）
+const STAGES=[
+  {name:'となりの席の人', floor:0, next:40},
+  {name:'顔見知り',       floor:0, next:50},
+  {name:'友達',           floor:0, next:60},
+  {name:'仲良し',         floor:0, next:70},
+  {name:'気になる人',     floor:0, next:60},
+];
+const BASE_BET=10;
+function affDelta(result,bet,myRank){
+  if(result>0) return bet+RANK_BONUS[myRank];
+  if(result<0) return -bet;
+  return 0;
+}
+
+</script>
+<script>
+// ===== こはるのセリフ（段階 0:となりの席の人 1:顔見知り 2:友達 3:仲良し 4:気になる人） =====
+const LINES={
+  greet:[
+    ['……よろしく。','……なに？　やるなら、どうぞ。','（無言でカードを切っている）','……今日も、やるの？','別に、暇だから付き合ってあげるだけ。','……配るよ。','（ちらっとこちらを見て、すぐ目をそらした）'],
+    ['あ、おはよ。','昨日のドラマ見た？　……見てないか。','今日も一回だけね。','ねえ、数学の宿題やった？','……眠い。カードで目を覚まそ。','今日は勝つ気がする。','あ、来た。待ってないけど。'],
+    ['ねえ、今日の小テストやばくない？','おはよー。今日もやる？','今日の購買のパン、新作出てたよ。','昨日ね、家で一人で練習したんだ。','負けたらジュースおごりね。冗談だけど。','見て、今日ちょっと前髪切った。……気づかないか。','よし、今週もかかってきなさい。'],
+    ['待ってた。今日は負けないから。','ね、今週もやろ。','昨日の夜、なんかずっとカードのこと考えてた。','その消しゴム、まだ使ってるの？','あとで一緒に帰らない？　……勝負のあとでね。','ふふ、今日の私は強いよ。','今日もいるね。……当たり前か、隣だもん。'],
+    ['……おはよ。今日も、隣だね。','来たね。ちょっと嬉しいかも。','……なんか最近、この時間が一番楽しい。','ねえ、席替え、ずっとなければいいのに。','今日も、手加減しないから。……たぶん。','（目が合うと、少し照れたように笑った）','……べつに、待ってたわけじゃないよ？'],
+  ],
+  win:[ // こちらが勝ったとき
+    ['……強いんだ。','へえ。','……運がいいだけでしょ。','（小さくため息をついた）','……次は、負けない。','……ふーん。'],
+    ['うそ、また負けた。','やるじゃん。','え、今のずるくない？','……もう一回やりたい。','なんか、悔しいんですけど。','ちょっと見直したかも。'],
+    ['くやしー！　次は勝つ！','なんでそんな引き強いの？','ねえ、カードに何かしてない？','うー、今日ジュースおごるのこっちか……。','ぜったい今のまぐれだから！','もー！　ちょっとは手加減してよ！'],
+    ['もー、ずるい。……でも、すごいね。','ふふ、かっこいいとこあるじゃん。','負けたのに、なんかちょっと嬉しい。変なの。','……今の、もう一回見たい。','やっぱり強いね。……知ってたけど。','次は私がびっくりさせる番だから。'],
+    ['……今の、ちょっとドキッとした。','そういうとこ、ずるいと思う。','負けても、なんか悔しくないんだよね、最近。','……ねえ、どうしてそんなに真剣なの？','すごいね。……ほんとに。','もう、見とれちゃうじゃん。'],
+  ],
+  lose:[ // こはるが勝ったとき
+    ['……私の勝ち。','（小さくガッツポーズした）','……当然。','……ま、こんなものでしょ。','（少しだけ口元がゆるんだ）','……残念でした。'],
+    ['ふふん、勝ち。','今日はツイてるかも。','やった、勝った。','どう？　私、けっこう強いでしょ。','あ、今ちょっと悔しい顔した。','勝つって気持ちいいね。'],
+    ['はい私の勝ちー。ジュースね。','残念でした。','いぇーい。今日のジュースはいちごミルクで。','ふふーん、修行が足りないね。','ねえ見た？　今の私の引き！','また勝っちゃった。ごめんね？'],
+    ['勝っちゃった。……落ち込まないでよ？','次、がんばれ。応援してる。','勝ったけど、そんな顔されると困るなぁ。','ふふ、今日は私の日だね。','また明日、リベンジ待ってるから。','……負けた顔も、ちょっとかわいいね。'],
+    ['私の勝ち。……でも、次も相手してね。','負けても、隣にはいてよね。','勝ったのに、なんで私が照れてるんだろ。','……明日も、勝負してくれる？','ふふ。勝ったから、今日は一緒に帰ってもらおうかな。','落ち込まないで。……私がいるでしょ。'],
+  ],
+  tie:[
+    ['……引き分け。','……同じ。','……。'],
+    ['あ、同じだ。','引き分けって、なんかもやもやする。','もう一回……は、来週ね。'],
+    ['引き分けかー。','えー、決着つけたかった！','気が合うのかな、私たち。'],
+    ['気が合うね、私たち。','引き分けって、ちょっと嬉しいかも。','ふふ、おそろいだね。'],
+    ['……引き分け。なんか、照れるね。','同じ役って、運命っぽくない？','……ずっと引き分けでもいいかも。'],
+  ],
+  // こちらがいい役（ストレート以上）を出したとき
+  big:['え、それずるくない！？','……なにその手札。','ちょっと待って、今の写真撮りたい。','うそでしょ……。','そんなの出されたら勝てないよ！','……すごっ。','神様に好かれてるんじゃない？'],
+  // こはるがいい役を出したとき
+  herBig:['ふふん。見て、これ。','今日の私、ちょっと神がかってるかも。','……やった。これは自信ある。','見て見て！　こんなの初めて！'],
+  // 賭けを上乗せしたとき
+  raise:['お、強気だね。','……本気？','そんなに自信あるんだ。','へえ、受けて立つよ。','……その顔、何か持ってるでしょ。','いいよ。こっちも本気出す。'],
+  peek:['……なに見てるの？','（目が合って、こはるが首をかしげた）','……顔に何かついてる？','じっと見ないでよ。','……ばれてないと思ってる？'],
+  joker:['え、ジョーカー入ってるの！？','……それ、反則じゃない？','ジョーカーって、なんかずるいよね。','またジョーカー！？'],
+  redeal:['え、配り直し？　……まあいいけど。','……そんなに手札ひどかったの？','ずるっこ。……今回だけだよ。'],
+  // こはるが強くなったとき
+  // 関係が進んだとき（こはるの本気度アップ）。段階ごと（0は使わない）
+  powerUp:[[],
+    ['……あなた、けっこう強いんだね。次からはちょっと本気でやる。','ふーん。……手加減、やめよっかな。'],
+    ['友達相手でも、勝負は勝負だから。本気でいくよ。','昨日、家で練習してきたんだ。覚悟してね。'],
+    ['あなたには負けたくないんだよね。なんでだろ。','……仲良くなったからって、手は抜かないからね？'],
+    ['あなたとの勝負だけは、絶対に手を抜きたくないの。','……本気の私、見ててね。']],
+  // イベント直前
+  eventReady:['（こはるの様子が、いつもと少し違う気がする……）','（何かが起きそうな予感がする）','（胸が少しだけ、どきどきしている）'],
+};
+// 月の最初の週のひとこと
+const MONTH_TALK=[
+  ['新学期。となりの席になった。','（窓の外で、桜が散っている）'],
+  ['連休明けで、教室はまだ眠そう。','「連休、どこか行った？　……私はずっと家」'],
+  ['梅雨。窓の外はずっと雨。','「雨の日って、なんか眠くなるよね」'],
+  ['期末テストが近い。','「テスト終わったら、思いっきり勝負しよ」'],
+  ['夏期講習。教室はがらんとしている。','「夏休みなのに学校って、なんか損した気分」'],
+  ['二学期。日焼けした顔が並ぶ。','「……焼けた？　ちょっと黒くなったね」'],
+  ['文化祭の準備で校内が騒がしい。','「うちのクラス、喫茶店やるんだって」'],
+  ['木枯らしの季節。','「もうカーディガンじゃ寒いね」'],
+  ['もうすぐ冬休み。','「冬休み、何するの？」'],
+  ['新しい年。','「あけおめ。……今年もよろしく」'],
+  ['少しだけ浮き足立つ2月。','「……2月って、なんかそわそわするよね」'],
+  ['進級前、最後の月。','「もうすぐ、この席ともお別れかぁ」'],
+];
+
+</script>
+<script>
+// ===== データ =====
+const MONTHS=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+const WEEKS=48;
+// 使い捨てアイテム
+const ITEMS=[
+  {id:'peek',  name:'のぞき見',    price:10, desc:'今回、こはるの手の強さがなんとなくわかる'},
+  {id:'redeal',name:'配り直し券',  price:15, desc:'交換の前に、手札5枚をまるごと配り直す'},
+  {id:'redraw',name:'替え芯',      price:15, desc:'交換をもう1回できる'},
+  {id:'clover',name:'四つ葉',      price:15, desc:'今回の交換で、いいカードを引きやすくなる'},
+  {id:'charm', name:'お守り',      price:20, desc:'次の手札が良くなりやすく、ワンペア以上が確定'},
+  {id:'ins',   name:'ばんそうこう',price:10, desc:'今回は負けても好感度が減らない'},
+];
+// ずっと有効（1回買えば終わり）
+const PERMS=[
+  {id:'bank',  name:'貯金箱',          price:60,  desc:'購買ポイントの獲得が1.5倍'},
+  {id:'shoes', name:'新しいスニーカー',price:80,  desc:'賭けられる好感度の上限が＋10'},
+  {id:'note',  name:'観察ノート',      price:120, desc:'毎回、こはるの手の強さがなんとなくわかる'},
+  {id:'extraEx',name:'予備のシャーペン',price:200,desc:'毎回の交換回数が＋1'},
+];
+// 段階的に強くなる
+const LUCK_MAX=10, JOKER_MAX=3;
+const luckPrice=lv=>40+20*lv;
+const jokerPrice=n=>100+60*n;
+const EVENTS=[
+  {key:'eraser',title:'落とした消しゴム',bg:'day',cg:'cg_eraser',scene:'数学の授業中、こはるの消しゴムがあなたの足元に転がってきた。こはるは困った顔でこちらを見ている。',
+   choices:[{label:'黙って拾って渡す',target:1,bonus:0,pts:5},{label:'拾って「これ、かわいいね」と言う',target:2,bonus:12,pts:30}],
+   ok:'「……ありがと」こはるは少しだけ笑った。それから、たまに話しかけてくるようになった。',
+   ng:'渡そうとした瞬間、先生に当てられてしまった。消しゴムは床を転がっていき、こはるは自分で拾ってしまった。'},
+  {key:'umbrella',title:'雨の昇降口',bg:'rain',cg:'cg_umbrella',scene:'放課後、急な雨。昇降口でこはるが空を見上げている。どうやら傘を忘れたらしい。',
+   choices:[{label:'傘を貸して、自分は走って帰る',target:1,bonus:0,pts:5},{label:'「駅まで一緒に入ってく？」',target:3,bonus:20,pts:60}],
+   ok:'駅までの道、肩が少し濡れた。「……今度、お礼する」とこはるは言った。',
+   ng:'言い出せずにいるうちに、こはるは友達の傘に入って帰ってしまった。昇降口に、雨の音だけが残った。'},
+  {key:'festival',title:'文化祭の準備',bg:'evening',cg:'cg_festival',scene:'文化祭の準備で、教室にこはると二人だけが残った。窓の外はもう夕焼けだ。',
+   choices:[{label:'黙々と看板を仕上げる',target:2,bonus:0,pts:10},{label:'「好きな音楽とかある？」と聞いてみる',target:3,bonus:15,pts:50},{label:'「当日、一緒に回らない？」',target:4,bonus:30,pts:100}],
+   ok:'気づけば下校時刻まで話し込んでいた。帰り道、こはるはずっと楽しそうだった。',
+   ng:'ペンキの缶をひっくり返してしまい、片付けで時間が終わってしまった。こはるは黙って雑巾を絞っていた。'},
+  {key:'winter',title:'冬の帰り道',bg:'evening',cg:'cg_winter',scene:'冬の帰り道、こはるがマフラーに顔をうずめて歩いている。駅までの分かれ道が近い。',
+   choices:[{label:'「また明日」と手を振る',target:2,bonus:0,pts:10},{label:'「寒いし、あったかいもの飲んでく？」',target:3,bonus:15,pts:50},{label:'「今度の休み、どこか行かない？」',target:4,bonus:30,pts:100}],
+   ok:'「……うん」こはるの返事は小さかったけど、耳まで赤くなっていた。',
+   ng:'言葉が出てこないまま、分かれ道に着いてしまった。こはるは少し寂しそうに手を振った。'},
+];
+// 一枚絵が届くまでの仮表示に使う説明
+const CG_DESC={
+  cg_opening:'4月の教室。窓際の席のこはるが、隣のこちらを横目で見る',
+  cg_eraser:'差し出された手から消しゴムを受け取り、照れくさそうに笑う',
+  cg_umbrella:'雨の中、一本の傘に二人で入ってはにかむ',
+  cg_festival:'夕焼けの教室、看板の前で楽しそうに笑う',
+  cg_winter:'マフラーに口元をうずめ、耳まで赤くしてうなずく',
+  cg_confess:'春の光と桜の花びら。窓際で振り返り、真剣な表情で見つめる',
+  ed_love:'満開の桜並木の下、涙を浮かべた笑顔で手を差し出す',
+  ed_later:'桜並木を走りながら振り返り、いたずらっぽく手を振る',
+  ed_friend:'青空の屋上、寂しげで優しい笑顔でトランプを1枚見せる',
+  ed_close:'春の中庭のベンチ、パンを半分に割って差し出す',
+  ed_stranger:'夕方の空いた席。机の上に桜色のヘアピンが1つ',
+  cg_eraser_miss:'授業中。床を転がる消しゴムを、こはるが自分でかがんで拾う',
+  cg_umbrella_miss:'雨の昇降口。友達の傘に入って帰っていくこはるの後ろ姿',
+  cg_festival_miss:'夕焼けの教室。こぼれたペンキの前で、黙って雑巾を絞るこはる',
+  cg_winter_miss:'冬の夕暮れの分かれ道。少し寂しそうに小さく手を振るこはる',
+};
+const ENDINGS=[
+  {img:'ed_stranger',title:'となりの席の人',text:'一年間、となりの席だった。でも、ほとんど話さないまま春が来た。二年生のクラス名簿に、こはるの名前はなかった。'},
+  {img:'ed_stranger',title:'顔見知り',text:'廊下ですれ違えば、軽く会釈するくらいの仲。それ以上でも、それ以下でもない。春の風がちょっとだけ冷たい。'},
+  {img:'ed_close',title:'友達',text:'「二年になっても、またしゃべろうね」こはるはそう言って笑った。いい友達ができた一年だった。'},
+  {img:'ed_close',title:'仲良し',text:'クラスが離れても、昼休みには一緒にパンを食べる約束をした。この関係が、いつか変わる日が来るのかもしれない。'},
+];
+const EXPR_JP={normal:'通常',smile:'笑顔',blush:'照れ',pout:'むくれ',surprise:'驚き',sad:'寂しげ'};
+
+// ===== 画像（img/ フォルダ。無ければ仮の枠を出す） =====
+const IMG={};
+// 立ち絵は透過PNG、背景と一枚絵は軽いJPEG
+function imgSrc(name){return 'img/'+name+(name.startsWith('sprite_')?'.png':'.jpg');}
+function hasImg(name){
+  if(!(name in IMG)){
+    IMG[name]='loading';
+    const im=new Image();
+    im.onload=()=>{IMG[name]='ok';render();if(!$('cg').hidden&&curCG===name) paintCGPic(name);};
+    im.onerror=()=>{IMG[name]='missing';render();};
+    im.src=imgSrc(name);
+  }
+  return IMG[name]==='ok';
+}
+function preloadAll(){
+  ['blazer','summer'].forEach(o=>Object.keys(EXPR_JP).forEach(e=>hasImg(`sprite_${o}_${e}`)));
+  ['day','evening','rain'].forEach(b=>hasImg('bg_'+b));
+  Object.keys(CG_DESC).forEach(hasImg);
+}
+
+// ===== 状態 =====
+const SAVE_KEY='tonari-poker-v1';
+function freshState(){
+  return {week:0,aff:0,stage:0,pts:0,
+    inv:{peek:0,redraw:0,charm:0,ins:0,clover:0,redeal:0},
+    perm:{bank:false,shoes:false,note:false,extraEx:0,luck:0,jokers:0},
+    herLv:0,loseStreak:0,eventFails:0,phase:'ready',mode:'normal',
+    armedCharm:false,armedIns:false,armedClover:false,freeCharm:false,
+    hand:[],dh:[],deck:[],held:[],raise:0,raisedSaid:false,peek:null,exLeft:0,exDone:0,redealt:false,bonusRedraw:0,
+    event:null,eventOpen:false,say:'',face:'normal',bg:null,verdict:'',why:'',log:[],ended:false,lastDelta:null,seenOpening:false,affV:2};
+}
+let S=freshState();
+function merge(o){const f=freshState();const r=Object.assign(f,o);
+  if(!o.affV){r.aff=Math.max(0,(+o.aff||0)-[0,40,90,150,220][r.stage||0]);} r.affV=2;r.inv=Object.assign(freshState().inv,o.inv||{});r.perm=Object.assign(freshState().perm,o.perm||{});
+  ['bank','shoes','note'].forEach(k=>r.perm[k]=!!r.perm[k]);r.perm.extraEx=+r.perm.extraEx||0;return r;}
+function load(){try{const t=localStorage.getItem(SAVE_KEY); if(t){const o=JSON.parse(t); if(o&&typeof o.week==='number') S=merge(o);}}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){}}
+
+// ===== ヘルパー =====
+const $=id=>document.getElementById(id);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const VL=v=>({11:'J',12:'Q',13:'K',14:'A'}[v]||String(v));
+function monthIdx(){return Math.min(11,Math.floor(Math.min(S.week,WEEKS-1)/4));}
+function stageInfo(){return STAGES[S.stage];}
+function ratio(){const s=stageInfo();return Math.max(0,Math.min(1,(S.aff-s.floor)/(s.next-s.floor)));}
+function gaugeFull(){return S.aff>=stageInfo().next;}
+function eventPending(){return S.stage<4&&gaugeFull();}
+function maxRaise(){return S.perm.shoes?30:20;}
+function canRaise(x){return x===0||S.aff>=BASE_BET+x;}
+function addLog(t){S.log.unshift(t);S.log=S.log.slice(0,40);}
+// 最終段階だけは上限なし（ゲージは満タンのまま、数値だけ増える）
+function clampAff(){const s=stageInfo();S.aff=Math.max(0,S.stage>=4?S.aff:Math.min(s.next,S.aff));}
+function calText(){return `${MONTHS[monthIdx()]}第${Math.min(S.week,WEEKS-1)%4+1}週`;}
+function gainPts(r,won){let p=RANK_POINTS[r]+(won?WIN_POINTS:0); if(S.perm.bank) p=Math.round(p*1.5); S.pts+=p; return p;}
+function setFace(f,say){S.face=f;if(say!==undefined)S.say=say;}
+// こはるの本気度：関係が深まるほど、こはるも本気で勝負してくる
+// 段階ごと：0 手加減 / 1 いい手が来やすい / 2 ストレートも狙う / 3 交換2回 / 4 さらにいい手が来やすい
+const HER_POWER=[0,2,5,8,11];
+function herPower(){return HER_POWER[S.stage];}
+function herLevel(){return S.stage+1;}
+function peekText(cards){
+  const e=evalHand(cards);
+  if(e.r>=3) return 'にやっと笑った（かなり強そう）';
+  if(e.r===2) return 'ちょっと嬉しそう（強め）';
+  if(e.r===1) return 'いつもの顔（ふつう）';
+  if(e.k[0]>=13) return '少し首をかしげた（弱め）';
+  return '小さくため息をついた（弱そう）';
+}
+function rankTier(r){return r===0?0:r===1?1:r<=3?2:r<=5?3:r<=7?4:5;}
+function rankHTML(r){return `<span class="rk rk${rankTier(r)}">${RANK_NAMES[r]}</span>`;}
+function cardText(c,e,i){
+  if(c.j){const s=e&&e.subs&&e.subs[i];return s?`JOKER→${VL(s.v)}`:'JOKER';}
+  return VL(c.v)+SUITS[c.s];
+}
+// 役を作っているカード（ノーペアは一番強いカード）
+function keyCards(cards,e){
+  let idx=e.parts.length?e.parts.slice():[cards.reduce((b,c,i)=>(!c.j&&c.v>cards[b].v)?i:b,0)];
+  return idx.map(i=>cardText(cards[i],e,i)).join(' ');
+}
+function handLabel(cards){const e=evalHand(cards);return `${rankHTML(e.r)} <span class="kc">${keyCards(cards,e)}</span>`;}
+function whyText(a,b){
+  const i=decidingIndex(a,b);
+  if(i===-1) return '役の強さの差';
+  if(i===-2) return '';
+  const names={1:['ペアの数字','残りのカード'],2:['大きいペアの数字','小さいペアの数字','残りのカード'],3:['スリーカードの数字','残りのカード'],6:['3枚組の数字','2枚組の数字'],7:['4枚組の数字','残りのカード']}[a.r];
+  let what=names?(names[Math.min(i,names.length-1)]):(i===0?'一番強いカード':`${i+1}番目に強いカード`);
+  if(a.r===4||a.r===8) what='ストレートの一番上のカード';
+  return `同じ${RANK_NAMES[a.r]}。${what}の差（${VL(a.k[i])} 対 ${VL(b.k[i])}）`;
+}
+
+// ===== 一枚絵 =====
+let curCG=null;
+function paintCGPic(name){
+  $('cgPic').innerHTML=hasImg(name)?`<img src="${imgSrc(name)}" alt="${CG_DESC[name]||''}">`
+    :`<div class="ph-cg"><b>一枚絵</b><span>${CG_DESC[name]||''}</span><span class="ph-label">${name}.jpg</span></div>`;
+}
+function showCG(name,html,onBtn){
+  curCG=name;paintCGPic(name);
+  $('cgText').innerHTML=html;$('cg').hidden=false;
+  $('cgText').scrollTop=0;const b=$('cgText').querySelector('button'); if(b){b.focus({preventScroll:true}); b.addEventListener('click',()=>{$('cg').hidden=true;curCG=null;onBtn&&onBtn();});}
+}
+function miniCards(cards){const e=evalHand(cards);return `<div class="hand mini cgcards">${cards.map((c,i)=>cardHTML(c,i,false,e)).join('')}</div>`;}
+
+// ===== 進行 =====
+function startHand(){
+  if(S.ended) return;
+  if(eventPending()&&S.mode==='normal'){openEvent();return;}
+  S.deck=newDeck(S.perm.jokers);
+  const lucky=Math.random()<S.perm.luck*0.06;
+  const charm=S.armedCharm||S.freeCharm;
+  if(charm) S.hand=dealCharmed(S.deck);
+  else if(lucky) S.hand=dealBestOf(S.deck,2);
+  else S.hand=dealN(S.deck,5);
+  if(S.armedCharm) S.inv.charm--;
+  S.armedCharm=false;S.freeCharm=false;
+  if(S.mode==='event') S.dh=[];
+  else S.dh=Math.random()<Math.min(0.7,herPower()*0.045)?dealBestOf(S.deck,2,popNatural):dealN(S.deck,5,popNatural);
+  S.held=[];S.raise=0;S.raisedSaid=false;S.verdict='';S.why='';S.lastDelta=null;S.redealt=false;S.exDone=0;
+  S.exLeft=1+S.perm.extraEx+S.bonusRedraw;S.bonusRedraw=0;
+  S.peek=(S.mode!=='event'&&S.perm.note)?peekText(S.dh):null;
+  S.phase='draw';
+  if(S.mode==='normal'){S.bg=null;setFace('normal',pick(LINES.greet[S.stage]));}
+  if(S.hand.some(c=>c.j)&&Math.random()<0.4&&S.mode!=='event') S.say=pick(LINES.joker);
+  render();save();
+}
+function toggleHold(i){
+  if(S.phase!=='draw'&&S.phase!=='after') return;
+  S.held=S.held.includes(i)?S.held.filter(x=>x!==i):[...S.held,i];
+  render();
+}
+function myReplace(){
+  const lucky=S.armedClover||Math.random()<S.perm.luck*0.05;
+  return (lucky?luckyReplace:drawReplace)(S.hand,S.held,S.deck,popAny);
+}
+function doExchange(){
+  if(S.exLeft>0) S.exLeft--; else if(S.inv.redraw>0) S.inv.redraw--; else return;
+  S.hand=myReplace();S.held=[];S.exDone++;
+  if(S.exLeft>0||S.inv.redraw>0){S.phase='after';render();save();return;}
+  finish();
+}
+function doRedeal(){
+  if(S.inv.redeal<=0||S.phase!=='draw'||S.exDone>0||S.redealt) return;
+  S.inv.redeal--;S.redealt=true;S.hand=dealN(S.deck,5);S.held=[];
+  if(S.mode==='normal') S.say=pick(LINES.redeal);
+  render();save();
+}
+function herDraw(){
+  const P=herPower();
+  const repl=P>=12?luckyReplace:drawReplace;
+  S.dh=repl(S.dh,autoHold(S.dh,P>=3),S.deck,popNatural);
+  if(P>=8) S.dh=repl(S.dh,autoHold(S.dh,true),S.deck,popNatural);
+}
+function finish(){
+  const ep=evalHand(S.hand);
+  S.armedClover&&(S.inv.clover--,S.armedClover=false);
+  if(S.mode==='event'){finishEvent(ep);return;}
+  herDraw();
+  const ed=evalHand(S.dh);
+  const res=cmpEval(ep,ed);
+  const got=gainPts(ep.r,res>0);
+  const bet=BASE_BET+S.raise;
+  let d=affDelta(res,bet,ep.r);
+  if(d<0&&S.armedIns){d=0;S.inv.ins--;}
+  S.armedIns=false;
+  const before=S.aff;S.aff+=d;clampAff();S.lastDelta=S.aff-before;
+  const who=res>0?'win':res<0?'lose':'tie';
+  let line=pick(LINES[who][S.stage]);
+  if(who==='win'&&ep.r>=4&&Math.random()<0.6) line=pick(LINES.big);
+  if(who==='lose'&&ed.r>=4&&Math.random()<0.6) line=pick(LINES.herBig);
+  setFace(who==='win'?(ep.r>=4?'surprise':S.stage>=3?'blush':'pout'):who==='lose'?'smile':'surprise',line);
+  S.verdict=res>0?'勝ち！':res<0?'負け…':'引き分け';
+  S.why=whyText(ep,ed);
+  S.phase='result';
+  showDelta(S.lastDelta);
+  if(S.mode==='final'){finishFinal(res);return;}
+  S.loseStreak=res<0?S.loseStreak+1:0;
+  let rescue=false;
+  if(S.loseStreak>=3){S.freeCharm=true;S.loseStreak=0;rescue=true;}
+  addLog(`${calText()}：${res>0?'勝ち':res<0?'負け':'引き分け'}（${RANK_NAMES[ep.r]} 対 ${RANK_NAMES[ed.r]}）好感度${S.lastDelta>=0?'+':''}${S.lastDelta}　購買P+${got}${rescue?' ／ 友達からお守り':''}`);
+  if(rescue) S.why+=(S.why?'　':'')+'友達「最近ツイてないな。これ持ってけ」→ 次の手札にお守り';
+  render();save();
+}
+function nextWeek(){
+  S.week++;
+  S.phase='ready';S.hand=[];S.dh=[];S.peek=null;S.verdict='';S.why='';S.lastDelta=null;S.bg=null;
+  if(S.week>=WEEKS){toFinal();return;}
+  setFace('normal',S.week%4===0?pick(MONTH_TALK[monthIdx()]):'');
+  render();save();
+  if(eventPending()) openEvent();
+}
+let deltaTimer=null;
+function showDelta(d){
+  const el=$('delta'); if(!el||d===null) return;
+  el.textContent=(d>0?'+':d<0?'−':'±')+Math.abs(d);
+  el.className='delta '+(d>0?'up':d<0?'down':'even');
+  void el.offsetWidth; el.classList.add('show');
+  clearTimeout(deltaTimer);deltaTimer=setTimeout(()=>el.classList.remove('show'),1800);
+}
+
+// ===== イベント =====
+function evEase(){return S.eventFails>=2?1:0;}
+function openEvent(){
+  const ev=EVENTS[S.stage];
+  S.eventOpen=true;S.bg=ev.bg;setFace('surprise',ev.scene);
+  render();save();
+}
+function chooseEvent(i){
+  const c=EVENTS[S.stage].choices[i];
+  S.eventOpen=false;S.mode='event';S.phase='ready';
+  S.event={target:Math.max(1,c.target-evEase()),bonus:c.bonus,pts:c.pts||0,label:c.label};
+  setFace('normal',pick(LINES.eventReady)+'　（配る前に、お守りや四つ葉を使えます）');
+  render();save();
+}
+function finishEvent(ep){
+  const ev=EVENTS[S.stage];const ok=ep.r>=S.event.target;const bonus=S.event.bonus;const target=S.event.target;const prize=S.event.pts||0;
+  const got=gainPts(ep.r,ok);const cards=S.hand.slice();
+  S.mode='normal';S.event=null;S.phase='ready';S.hand=[];S.dh=[];
+  const res=`<div class="cg-res">${miniCards(cards)}<div>${rankHTML(ep.r)} <span class="kc">${keyCards(cards,ep)}</span><br><span class="small">目標：${RANK_NAMES[target]}以上　購買P +${got}</span></div></div>`;
+  if(ok){
+    // 関係が進んだら好感度は0から（選んだ行動の上乗せぶんだけ持ち越す）。報酬の購買Pも入る
+    S.stage++;S.eventFails=0;S.aff=bonus;clampAff();S.pts+=prize;
+    addLog(`${calText()}：イベント「${ev.title}」成功 → ${STAGES[S.stage].name}`);
+    setFace('blush',pick(LINES.powerUp[S.stage]));S.bg=null;
+    addLog(`${calText()}：こはるの本気度が上がった（${herLevel()}/5）`);
+    render();save();
+    showCG(ev.cg,`<div class="eyebrow">${ev.title}・成功</div><p>${ev.ok}</p>${res}
+      <p class="small">関係が「${STAGES[S.stage].name}」になった。好感度は0から${bonus?`（＋${bonus}からスタート）`:''}。${prize?`報酬：購買P ＋${prize}。`:''}こはるの本気度も上がった（${'●'.repeat(herLevel())}${'○'.repeat(5-herLevel())}）。</p><button class="btn primary" type="button">つづける</button>`);
+  }else{
+    S.eventFails++;const s=stageInfo();const b=S.aff;S.aff-=Math.round((s.next-s.floor)*0.3);clampAff();
+    addLog(`${calText()}：イベント「${ev.title}」失敗`);
+    setFace('sad','……。');S.bg=null;
+    render();save();
+    showCG(ev.cg+'_miss',`<div class="eyebrow">${ev.title}・失敗</div><p>${ev.ng}</p>${res}
+      <p class="small">少し気まずくなった（好感度 −${b-S.aff}）。ゲージがまた満タンになれば、もう一度チャンスが来る。${S.eventFails>=2?'次は目標が1段階やさしくなる。':''}</p><button class="btn primary" type="button">つづける</button>`);
+  }
+}
+
+// ===== 最終週・エンディング =====
+function toFinal(){
+  S.week=WEEKS;S.phase='ready';
+  render();save();
+  if(S.stage>=4){
+    const full=gaugeFull();
+    showCG('cg_confess',`<div class="eyebrow">3月・終業式の日</div><h3>告白</h3><p>放課後の教室。こはるが「話って、なに？」と振り返る。一年分の勝負を、ここで決める。</p>
+      <p class="small">最後はこはるとの勝負。勝てば想いが届く。${full?'想いが十分に伝わっているので、交換が1回多くできる。':''}</p>
+      <button class="btn primary" type="button">伝える</button>`,()=>{S.mode='final';S.bonusRedraw=full?1:0;S.bg='evening';startHand();setFace('blush','……うん。聞かせて。');render();});
+  }else showEnding(ENDINGS[S.stage]);
+}
+function finishFinal(res){
+  S.ended=true;render();save();
+  const cards=miniCards(S.hand);
+  if(res>0) showEnding({img:'ed_love',title:'両想い',text:'「……私も、ずっと隣にいたいって思ってた」こはるはそう言って、手札を伏せた。二年生の春は、きっと特別なものになる。'},cards);
+  else if(res===0) showEnding({img:'ed_later',title:'返事は春休みのあとで',text:'「引き分け、か。……ちょっとだけ考えさせて」こはるは笑って、桜の下を走っていった。'},cards);
+  else showEnding({img:'ed_friend',title:'友達のままで',text:'「ごめんね。でも、これからも勝負してくれる？」それがこはるの答えだった。春の空がやけに青い。'},cards);
+}
+function showEnding(e,extra){
+  S.ended=true;save();render();
+  showCG(e.img,`<div class="eyebrow">ENDING</div><h3>${e.title}</h3><p>${e.text}</p>${extra||''}
+    <p class="small">最終的な関係：${STAGES[S.stage].name}　／　残りの購買P：${S.pts}</p>
+    <button class="btn primary" type="button">もう一年やる</button>`,newGame);
+}
+function newGame(){S=freshState();save();render();openingCG();}
+function openingCG(){
+  showCG('cg_opening',`<div class="eyebrow">4月・新学期</div><h3>となりの席</h3><p>窓際の一番うしろ。となりの席になったのは、七瀬こはるという女の子だった。休み時間、こはるが机の上にトランプを広げている。「……一回、やる？」</p>
+    <button class="btn primary" type="button">はじめる</button>`,()=>{S.seenOpening=true;setFace('normal','……ルールは普通のポーカー。交換は1回ね。');render();save();});
+}
+
+// ===== 購買部 =====
+function priceOf(kind,id){
+  if(kind==='item') return ITEMS.find(x=>x.id===id).price;
+  if(kind==='perm') return PERMS.find(x=>x.id===id).price;
+  if(id==='luck') return luckPrice(S.perm.luck);
+  if(id==='joker') return jokerPrice(S.perm.jokers);
+}
+function buy(kind,id){
+  const p=priceOf(kind,id);
+  if(S.pts<p||S.ended) return;
+  let name;
+  if(kind==='item'){S.inv[id]++;name=ITEMS.find(x=>x.id===id).name;}
+  else if(kind==='perm'){
+    if(id==='extraEx'){if(S.perm.extraEx>=1)return;S.perm.extraEx=1;}else{if(S.perm[id])return;S.perm[id]=true;}
+    name=PERMS.find(x=>x.id===id).name;
+    if(id==='note'&&S.phase==='draw'&&S.mode!=='event'&&!S.peek) S.peek=peekText(S.dh);
+  }else if(id==='luck'){if(S.perm.luck>=LUCK_MAX)return;S.perm.luck++;name=`幸運のブレスレット（Lv${S.perm.luck}）`;}
+  else if(id==='joker'){if(S.perm.jokers>=JOKER_MAX)return;S.perm.jokers++;name=`ジョーカー（${S.perm.jokers}枚目）`;}
+  S.pts-=p;
+  addLog(`${calText()}：${name}を買った`);
+  render();save();
+}
+function usePeek(){if(S.inv.peek<=0||S.phase!=='draw'||S.mode==='event'||S.peek) return;S.inv.peek--;S.peek=peekText(S.dh);setFace(S.face,pick(LINES.peek));render();save();}
+
+// ===== アイコン（線画） =====
+const ICONS={
+  peek:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  redeal:'<path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/>',
+  redraw:'<path d="M15 3l6 6L9 21H3v-6z"/><path d="M13 5l6 6"/>',
+  clover:'<circle cx="8.5" cy="8.5" r="3.5"/><circle cx="15.5" cy="8.5" r="3.5"/><circle cx="8.5" cy="15.5" r="3.5"/><circle cx="15.5" cy="15.5" r="3.5"/><path d="M12 12l5 9"/>',
+  charm:'<path d="M7 7h10v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/><path d="M10 12h4M12 10v6"/>',
+  ins:'<rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-35 12 12)"/><circle cx="11" cy="12" r=".6"/><circle cx="13" cy="12" r=".6"/>',
+  bank:'<ellipse cx="12" cy="13" rx="8" ry="6"/><path d="M10 7h4"/><path d="M8 18l-1 3M16 18l1 3"/><circle cx="16" cy="12" r=".7"/>',
+  shoes:'<path d="M3 16v-5l5-1 3 3h4l6 2v3H3z"/><path d="M3 19h18"/>',
+  note:'<path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 17a2 2 0 0 1 2-2h12"/><path d="M9 7h6M9 10h4"/>',
+  extraEx:'<path d="M14 3l7 7L10 21H3v-7z"/><path d="M5 9V3M2 6h6"/>',
+  luck:'<circle cx="12" cy="12" r="8"/><path d="M12 7l1.5 3.2 3.5.4-2.6 2.4.7 3.5L12 14.8 8.9 16.5l.7-3.5L7 10.6l3.5-.4z"/>',
+  joker:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 9l2-3 2 3 2-3 2 3"/><path d="M9 14c1 2 5 2 6 0"/>',
+};
+const icon=id=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]||''}</svg>`;
+
+// ===== 描画 =====
+function cardHTML(c,i,clickable,e){
+  const part=e&&e.parts.includes(i)?' part':'';
+  if(c.j){
+    const s=e&&e.subs&&e.subs[i];
+    const inner=`<span class="jk">JOKER</span>${s?`<span class="jv">→${VL(s.v)}</span>`:''}`;
+    if(clickable) return `<button type="button" class="card joker${part}${S.held.includes(i)?' held':''}" data-i="${i}" aria-pressed="${S.held.includes(i)}" aria-label="ジョーカー">${inner}</button>`;
+    return `<div class="card joker${part}">${inner}</div>`;
+  }
+  const red=c.s===1||c.s===2;
+  const inner=`<span>${VL(c.v)}</span><span>${SUITS[c.s]}</span>`;
+  if(clickable) return `<button type="button" class="card${red?' red':''}${part}${S.held.includes(i)?' held':''}" data-i="${i}" aria-pressed="${S.held.includes(i)}" aria-label="${VL(c.v)}">${inner}</button>`;
+  return `<div class="card${red?' red':''}${part}">${inner}</div>`;
+}
+const BACKS='<div class="card back"></div>'.repeat(5), GHOSTS='<div class="card back ghost"></div>'.repeat(5);
+const SPRITE_FALLBACK={normal:'sad'};
+function spriteName(){
+  const summer=monthIdx()>=2&&monthIdx()<=5;
+  const face=S.face in EXPR_JP?S.face:'normal';
+  if(summer&&(hasImg(`sprite_summer_${face}`)||IMG[`sprite_summer_${face}`]==='loading')) return `sprite_summer_${face}`;
+  const b=`sprite_blazer_${face}`;
+  if(!hasImg(b)&&IMG[b]==='missing'&&SPRITE_FALLBACK[face]) return `sprite_blazer_${SPRITE_FALLBACK[face]}`;
+  return b;
+}
+function bgName(){return S.bg||(monthIdx()===2?'rain':'day');}
+function render(){
+  // 舞台
+  const bg=bgName();
+  $('bg').innerHTML=hasImg('bg_'+bg)?`<img src="${imgSrc('bg_'+bg)}" alt="">`:`<div class="ph-bg ${bg}"></div>`;
+  const sp=spriteName();
+  $('sprite').innerHTML=hasImg(sp)?`<img src="${imgSrc(sp)}" alt="こはる（${EXPR_JP[S.face]||'通常'}）">`
+    :`<div class="ph-sprite"><span class="ph-label">立ち絵 ${sp}.png</span></div>`;
+  $('cal').innerHTML=S.week>=WEEKS?'3月<small>終業式</small>':`${MONTHS[monthIdx()]} 第${S.week%4+1}週<small>残り${WEEKS-S.week}週</small>`;
+  $('stagePill').textContent=STAGES[S.stage].name;
+  $('affNum').textContent=S.aff;
+  const st=stageInfo(), r=ratio();
+  $('gaugeFill').style.width=(r*100)+'%';$('gauge').classList.toggle('full',r>=1);
+  $('gFrom').textContent=st.floor;$('gTo').textContent=st.next;
+  $('ghint').textContent=r>=1?(S.stage>=4?'想いは十分。3月の告白へ':'イベント発生！'):(S.stage>=4?`告白の準備まで あと${st.next-S.aff}`:`次のイベントまで あと${st.next-S.aff}`);
+  $('gauge').setAttribute('aria-label',`好感度 ${S.aff}（0〜${st.next}）`);
+  $('who').textContent=S.eventOpen?EVENTS[S.stage].title:'こはる';
+  $('say').textContent=S.say||'（こはるは窓の外を見ている）';
+  // イベントの選択肢
+  const ch=$('choices');
+  if(S.eventOpen&&!S.ended){
+    const ev=EVENTS[S.stage];
+    let h=ev.choices.map((c,i)=>`<button class="btn" type="button" data-choice="${i}">${c.label}<small>目標：${RANK_NAMES[Math.max(1,c.target-evEase())]}以上　成功の報酬：購買P＋${c.pts}${c.bonus?`・好感度＋${c.bonus}からスタート`:''}</small></button>`).join('');
+    if(evEase()) h+='<span class="small">何度目かのチャンス。目標が1段階やさしくなっている。</span>';
+    ch.innerHTML=h;ch.hidden=false;
+    ch.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>chooseEvent(+b.dataset.choice)));
+  }else{ch.hidden=true;ch.innerHTML='';}
+  // 机
+  const ev=S.mode==='event'&&S.event;
+  $('dLabel').innerHTML=ev?'イベント勝負　目標':S.mode==='final'?'告白の勝負　こはるの手札':'こはるの手札';
+  if(ev) $('dHand').innerHTML=`<div class="target">${rankHTML(S.event.target)} 以上<small>${S.event.label}</small></div>`;
+  else if(S.phase==='result'){const e=evalHand(S.dh);$('dHand').innerHTML=S.dh.map((c,i)=>cardHTML(c,i,false,e)).join('');}
+  else $('dHand').innerHTML=S.dh.length?BACKS:GHOSTS;
+  $('dRank').innerHTML=S.phase==='result'&&!ev&&S.dh.length?handLabel(S.dh):S.peek?`<span class="hint-chip">こはるは${S.peek}</span>`:'&nbsp;';
+  const clickable=S.phase==='draw'||S.phase==='after';
+  const pe=S.hand.length?evalHand(S.hand):null;
+  $('pHand').innerHTML=S.hand.length?S.hand.map((c,i)=>cardHTML(c,i,clickable,pe)).join(''):GHOSTS;
+  $('pHand').querySelectorAll('[data-i]').forEach(b=>b.addEventListener('click',()=>toggleHold(+b.dataset.i)));
+  $('myRank').innerHTML=S.hand.length?handLabel(S.hand):'&nbsp;';
+  $('resultLine').innerHTML=S.verdict?`<b class="verdict ${S.verdict==='勝ち！'?'win':S.verdict==='負け…'?'lose':''}">${S.verdict}</b> <span>${S.why}</span>`:'&nbsp;';
+  // 操作（賭けと交換を同じ行に）
+  const ctl=$('controls');let h='';
+  const tog=(id,on,label)=>`<button class="btn tog${on?' sel':''}" type="button" id="${id}">${label}</button>`;
+  if(S.ended) h=`<span>おしまい。</span><button class="btn primary" type="button" id="cNew">もう一年やる</button>`;
+  else if(S.eventOpen) h='<span class="hint-chip">上の選択肢から行動を選んでください</span>';
+  else if(S.phase==='ready'){
+    h=`<button class="btn primary" type="button" id="cDeal">${eventPending()&&S.mode==='normal'?'イベントへ':'配る'}</button>`;
+    if(S.inv.charm>0) h+=tog('cCharm',S.armedCharm,`${icon('charm')}お守り ${S.inv.charm}`);
+    if(S.freeCharm) h+='<span class="hint-chip">友達のお守りが効いている</span>';
+    if(S.mode==='normal'&&S.inv.ins>0) h+=tog('cIns',S.armedIns,`${icon('ins')}ばんそうこう ${S.inv.ins}`);
+  }else if(S.phase==='draw'){
+    if(S.mode==='normal'){
+      h+='<span class="betlab">賭け</span>';
+      for(let x=0;x<=maxRaise();x+=10) h+=`<button type="button" class="btn chip${S.raise===x?' sel':''}" data-raise="${x}" ${canRaise(x)?'':'disabled'}>${x===0?`基本 ${BASE_BET}`:'＋'+x}</button>`;
+    }
+    h+=`<button class="btn primary" type="button" id="cEx">${S.held.length===5?'交換しない':'交換（'+(5-S.held.length)+'枚）'}</button>`;
+    if(!S.redealt&&S.inv.redeal>0) h+=`<button class="btn tool" type="button" id="cRedeal">${icon('redeal')}配り直し ${S.inv.redeal}</button>`;
+    if(S.inv.clover>0) h+=tog('cClover',S.armedClover,`${icon('clover')}四つ葉 ${S.inv.clover}`);
+    if(S.mode==='normal'&&!S.peek&&S.inv.peek>0) h+=`<button class="btn tool" type="button" id="cPeek">${icon('peek')}のぞき見 ${S.inv.peek}</button>`;
+    if(S.mode==='normal'&&S.inv.ins>0) h+=tog('cIns',S.armedIns,`${icon('ins')}ばんそうこう ${S.inv.ins}`);
+  }else if(S.phase==='after'){
+    const lab=S.exLeft>0?`もう一回交換（${5-S.held.length}枚／残り${S.exLeft}回）`:`替え芯で交換（${5-S.held.length}枚／残${S.inv.redraw}）`;
+    h=`<button class="btn primary" type="button" id="cEx">${lab}</button><button class="btn" type="button" id="cStand">${S.mode==='event'?'これで決める':'勝負する'}</button>`;
+    if(S.inv.clover>0) h+=tog('cClover',S.armedClover,`${icon('clover')}四つ葉 ${S.inv.clover}`);
+  }else if(S.phase==='result') h=`<button class="btn primary" type="button" id="cNext">${S.week+1>=WEEKS?'3月の最後の日へ':'次の週へ'}</button>`;
+  ctl.innerHTML=h;
+  ctl.querySelectorAll('[data-raise]').forEach(b=>b.addEventListener('click',()=>{
+    const x=+b.dataset.raise; if(!canRaise(x)) return; S.raise=x;
+    if(x>0&&!S.raisedSaid){S.raisedSaid=true;S.say=pick(LINES.raise);} render();}));
+  const on=(id,f)=>{const e=$(id);if(e)e.addEventListener('click',f);};
+  on('cDeal',startHand);on('cEx',doExchange);on('cPeek',usePeek);on('cNext',nextWeek);on('cRedeal',doRedeal);
+  on('cStand',finish);
+  on('cCharm',()=>{S.armedCharm=!S.armedCharm;render();});
+  on('cIns',()=>{S.armedIns=!S.armedIns;render();});
+  on('cClover',()=>{S.armedClover=!S.armedClover;render();});
+  on('cNew',newGame);
+  renderShop();
+}
+function renderShop(){
+  $('ptsTop').textContent=S.pts+'P';$('pts').textContent=`購買P ${S.pts}`;
+  const btn=(kind,id,p,dis)=>`<button class="btn" type="button" data-kind="${kind}" data-id="${id}" ${dis||S.pts<p||S.ended?'disabled':''}>${p}P</button>`;
+  let sh='<h3 class="sh">使い捨て</h3>';
+  ITEMS.forEach(it=>{sh+=`<div class="item">${icon(it.id)}<div class="it-body"><span class="nm">${it.name}</span><span class="ds">${it.desc}</span></div>
+    <span class="act"><span class="own">所持${S.inv[it.id]}</span>${btn('item',it.id,it.price)}</span></div>`;});
+  sh+='<h3 class="sh">ずっと有効</h3>';
+  PERMS.forEach(it=>{const had=it.id==='extraEx'?S.perm.extraEx>=1:S.perm[it.id];
+    sh+=`<div class="item">${icon(it.id)}<div class="it-body"><span class="nm">${it.name}</span><span class="ds">${it.desc}</span></div>
+    <span class="act">${had?'<span class="own">購入済み</span>':btn('perm',it.id,it.price)}</span></div>`;});
+  const lv=S.perm.luck, jk=S.perm.jokers;
+  sh+=`<div class="item">${icon('luck')}<div class="it-body"><span class="nm">幸運のブレスレット <span class="lv">Lv${lv}/${LUCK_MAX}</span></span><span class="ds">配られる手札と交換で引くカードが良くなりやすい（1段階ごとに強化）</span>
+    <span class="meter">${'<i class="on"></i>'.repeat(lv)}${'<i></i>'.repeat(LUCK_MAX-lv)}</span></div>
+    <span class="act">${lv>=LUCK_MAX?'<span class="own">最大</span>':btn('up','luck',luckPrice(lv))}</span></div>`;
+  sh+=`<div class="item">${icon('joker')}<div class="it-body"><span class="nm">ジョーカー <span class="lv">${jk}/${JOKER_MAX}枚</span></span><span class="ds">あなたの山札に入る。一番強くなるカードに化ける（5枚同じ＝ファイブカードが最強）</span></div>
+    <span class="act">${jk>=JOKER_MAX?'<span class="own">最大</span>':btn('up','joker',jokerPrice(jk))}</span></div>`;
+  sh+=`<p class="small her">こはるの本気度 <b>${'●'.repeat(herLevel())}${'○'.repeat(5-herLevel())}</b>　仲が深まるほど、こはるも本気で勝負してきます（関係が1段階進むごとに上がる）。</p>`;
+  $('shop').innerHTML=sh;
+  $('shop').querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>buy(b.dataset.kind,b.dataset.id)));
+  $('payt').innerHTML='<tr><td>役</td><td>購買P</td><td>勝ったときの上乗せ</td></tr>'+RANK_NAMES.map((n,i)=>`<tr><td>${rankHTML(i)}</td><td>${RANK_POINTS[i]}${S.perm.bank?'×1.5':''}</td><td>${RANK_BONUS[i]?'＋'+RANK_BONUS[i]:'—'}</td></tr>`).reverse().join('');
+  $('log').innerHTML=S.log.map(t=>`<li>${t}</li>`).join('');
+}
+// 引き出し
+function openDrawer(id){$(id).hidden=false;const b=$(id).querySelector('[data-close]');b&&b.focus();}
+$('openShop').addEventListener('click',()=>openDrawer('shopDrawer'));
+$('openHelp').addEventListener('click',()=>openDrawer('helpDrawer'));
+document.querySelectorAll('.drawer').forEach(d=>{
+  d.addEventListener('click',e=>{if(e.target===d||e.target.hasAttribute('data-close')) d.hidden=true;});
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') document.querySelectorAll('.drawer').forEach(d=>d.hidden=true);});
+let resetArmed=false;
+$('resetBtn').addEventListener('click',()=>{
+  if(!resetArmed){resetArmed=true;$('resetConfirm').hidden=false;setTimeout(()=>{resetArmed=false;$('resetConfirm').hidden=true;},3000);return;}
+  resetArmed=false;$('resetConfirm').hidden=true;$('helpDrawer').hidden=true;newGame();
+});
+function boot(data){
+  if(data&&data.S) S=merge(data.S); else load();
+  preloadAll();
+  render();
+  if(S.week>=WEEKS&&!S.ended&&S.mode!=='final'){toFinal();return;}
+  if(!S.seenOpening&&S.week===0&&S.phase==='ready'){openingCG();return;}
+  if(!S.ended&&S.phase==='ready'&&S.mode==='normal'&&eventPending()&&!S.eventOpen) openEvent();
+}
+window.claude?.hot?.snapshot?.(()=>({S}));
+window.claude?.hot?.ready?window.claude.hot.ready(boot):boot(window.claude?.hot?.data??{});
+
+</script>
+
+</body>
+</html>
